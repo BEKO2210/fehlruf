@@ -32,11 +32,3 @@ insert into stations (code, name, line) values
   ('MONT', 'Montage', 'Montage')
 on conflict (code) do nothing;
 
-insert into calls (id, station_code, line, part_no, part_name, qty, urgency, note, status)
-select 'DEMO01', 'L2-02', 'Linie 2', '6204-2RSR', 'Rillenkugellager', 4, 'sofort', 'Demo zum Ausprobieren', 'open'
-where not exists (select 1 from calls where id = 'DEMO01');
-
-insert into calls (id, station_code, line, part_no, part_name, qty, urgency, note, status)
-select 'DEMO02', 'L1-04', 'Linie 1', 'DIN933-M8X30', 'Sechskantschraube', 20, 'normal', 'Demo zum Ausprobieren', 'open'
-where not exists (select 1 from calls where id = 'DEMO02');
-
