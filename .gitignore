@@ -1,0 +1,13 @@
+node_modules
+.vercel
+.tanstack
+screenshots
+artifacts
+dist
+*.log
+.env
+.env.*
+.node_modules.lock
+.grok/*
+!.grok/app-env.json
+AGENTS.md
