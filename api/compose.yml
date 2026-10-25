@@ -1,0 +1,26 @@
+# Fehlruf-API auf dem Heimserver.
+#   docker compose up -d --build
+# Erreichbar nur auf 127.0.0.1:8787. Nach außen geht es über deinen
+# Cloudflare Tunnel (Public Hostname -> http://localhost:8787).
+services:
+  fehlruf-api:
+    build: .
+    container_name: fehlruf-api
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8787:8787"
+    environment:
+      # Adresse der GitHub-Pages-Seite, ohne Pfad. Mehrere mit Komma.
+      ALLOWED_ORIGINS: "https://beko2210.github.io"
+      # Optional: feste PIN statt beim ersten Öffnen festlegen.
+      # FEHLRUF_PIN: "123456"
+    volumes:
+      - fehlruf-data:/data
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+volumes:
+  fehlruf-data:
