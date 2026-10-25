@@ -1,0 +1,286 @@
+import { Link, useParams, useSearch } from "@tanstack/react-router";
+import { Check, Minus, Package, Plus, ScanLine, TriangleAlert } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Scanner } from "@/components/scanner";
+import { Button, Chip, ErrorText, Field, PageTitle, TextArea, TextInput } from "@/components/ui";
+import { api, type StationRow } from "@/lib/api";
+import { parseScan, remember, uniqueLines } from "@/lib/format";
+
+const KEY_DEPT = "fehlruf-abteilung";
+const KEY_NAME = "fehlruf-name";
+
+type Done = { line: string; partNo: string; qty: number; urgent: boolean };
+
+export function RufPage() {
+  const { code } = useParams({ from: "/ruf/$code" });
+  const { teil } = useSearch({ from: "/ruf/$code" });
+  const [station, setStation] = useState<StationRow | null>(null);
+  const [departments, setDepartments] = useState<string[]>([]);
+  const [partNo, setPartNo] = useState(teil ?? "");
+  const [scanning, setScanning] = useState(!teil);
+  const [dept, setDept] = useState("");
+  const [name, setName] = useState("");
+  const [qty, setQty] = useState(1);
+  const [stopped, setStopped] = useState(false);
+  const [note, setNote] = useState("");
+  const [showNote, setShowNote] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
+  const [done, setDone] = useState<Done | null>(null);
+
+  // Abteilung/Linie und Name kommen vom letzten Mal: beim zweiten Teil nur noch Scannen + Senden.
+  useEffect(() => {
+    setDept(remember.get(KEY_DEPT));
+    setName(remember.get(KEY_NAME));
+    let cancelled = false;
+    api
+      .form(code.toUpperCase())
+      .then((form) => {
+        if (cancelled) return;
+        setDepartments(form.departments);
+        if (form.station) {
+          setStation(form.station);
+          setDept(form.station.line);
+        }
+      })
+      .catch(() => {
+        // Ohne Vorschläge geht es trotzdem; Fehler zeigt erst das Senden.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [code]);
+
+  const choices = uniqueLines([...departments, remember.get(KEY_DEPT)].filter(Boolean));
+
+  if (done) {
+    return (
+      <div className="mx-auto grid w-full max-w-lg gap-5 pt-4 text-center">
+        <div className="pop mx-auto grid size-24 place-items-center rounded-full bg-ok-soft text-ok">
+          <Check className="size-12" strokeWidth={3} aria-hidden="true" />
+        </div>
+        <div className="rise">
+          <h1 className="text-[28px] font-bold tracking-tight">Gemeldet</h1>
+          <p className="mt-1 text-base text-muted">Das Lager sieht es jetzt.</p>
+        </div>
+        <div className="card rise p-5 text-left">
+          <p className="font-mono text-xl font-semibold break-all">{done.partNo}</p>
+          <p className="mt-1 text-base text-muted tabular-nums">
+            {done.qty} Stück · {done.line}
+          </p>
+          {done.urgent ? (
+            <p className="mt-3 inline-flex rounded-full bg-hot-soft px-3 py-1 text-sm font-semibold text-hot">
+              Maschine steht
+            </p>
+          ) : null}
+        </div>
+        <Link
+          to="/"
+          className="press inline-flex h-14 items-center justify-center gap-2 rounded-2xl bg-brand text-base font-semibold text-brand-ink"
+        >
+          <ScanLine className="size-5" aria-hidden="true" />
+          Nächstes Teil scannen
+        </Link>
+      </div>
+    );
+  }
+
+  return (
+    <form
+      className="mx-auto grid w-full max-w-lg gap-6"
+      onSubmit={(event) => {
+        event.preventDefault();
+        if (!partNo.trim()) {
+          setError("Welches Teil? Scannen oder Nummer eintippen.");
+          return;
+        }
+        if (!dept.trim()) {
+          setError("Abteilung / Linie fehlt.");
+          return;
+        }
+        setPending(true);
+        setError(null);
+        api
+          .createCall({
+            line: dept,
+            partNo,
+            qty,
+            urgency: stopped ? "sofort" : "normal",
+            note,
+            requester: name,
+            stationCode: station ? station.code : "",
+          })
+          .then((call) => {
+            remember.set(KEY_DEPT, call.line);
+            remember.set(KEY_NAME, name.trim());
+            setDone({ line: call.line, partNo: call.partNo, qty: call.qty, urgent: stopped });
+          })
+          .catch((err: unknown) => setError(err instanceof Error ? err.message : "Nicht angekommen. Nochmal senden."))
+          .finally(() => setPending(false));
+      }}
+    >
+      <PageTitle
+        title="Teil melden"
+        sub={station ? `${station.name} · ${station.line}` : "Noch kurz sagen, wohin."}
+      />
+
+      {scanning ? (
+        <Scanner
+          onCode={(raw) => {
+            const hit = parseScan(raw);
+            if (hit?.kind === "part") {
+              setPartNo(hit.partNo);
+              setScanning(false);
+            }
+          }}
+        />
+      ) : null}
+
+      <section className="card flex items-center gap-4 p-4">
+        <div className="grid size-12 shrink-0 place-items-center rounded-2xl bg-brand-soft text-brand">
+          <Package className="size-6" aria-hidden="true" />
+        </div>
+        <label className="min-w-0 flex-1">
+          <span className="block text-xs font-semibold tracking-wider text-subtle uppercase">Teil</span>
+          <input
+            value={partNo}
+            onChange={(event) => setPartNo(event.target.value)}
+            placeholder="Nummer vom Teil"
+            autoComplete="off"
+            autoCapitalize="characters"
+            className="w-full bg-transparent font-mono text-xl font-semibold outline-none placeholder:font-sans placeholder:text-base placeholder:font-normal placeholder:text-subtle"
+          />
+        </label>
+        {!scanning ? (
+          <button
+            type="button"
+            aria-label="Neu scannen"
+            className="press grid size-11 shrink-0 place-items-center rounded-xl bg-surface-2 text-text"
+            onClick={() => setScanning(true)}
+          >
+            <ScanLine className="size-5" aria-hidden="true" />
+          </button>
+        ) : null}
+      </section>
+
+      <div className="grid gap-3">
+        <Field label="Abteilung / Linie">
+          <TextInput
+            value={dept}
+            onChange={(event) => setDept(event.target.value)}
+            placeholder="z. B. Montage oder Linie 3"
+            autoComplete="off"
+            autoCapitalize="words"
+            enterKeyHint="next"
+          />
+        </Field>
+        {choices.length > 0 ? (
+          <div className="flex flex-wrap gap-2">
+            {choices.map((item) => (
+              <Chip key={item} size="lg" active={dept === item} onClick={() => setDept(item)}>
+                {item}
+              </Chip>
+            ))}
+          </div>
+        ) : null}
+      </div>
+
+      <Field label="Dein Name" hint="freiwillig">
+        <TextInput
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+          placeholder="Vorname"
+          autoComplete="given-name"
+          autoCapitalize="words"
+          maxLength={40}
+        />
+      </Field>
+
+      <div className="grid gap-2">
+        <span className="text-sm font-semibold">Menge</span>
+        <div className="card flex items-center justify-between p-2">
+          <button
+            type="button"
+            className="press grid size-14 place-items-center rounded-xl bg-surface-2"
+            onClick={() => setQty((n) => Math.max(1, n - 1))}
+            aria-label="Weniger"
+          >
+            <Minus className="size-6" aria-hidden="true" />
+          </button>
+          <input
+            value={qty}
+            onChange={(event) => {
+              const n = Number(event.target.value.replace(/\D/g, ""));
+              setQty(Math.min(9999, Math.max(1, n || 1)));
+            }}
+            inputMode="numeric"
+            aria-label="Menge"
+            className="w-24 bg-transparent text-center font-mono text-3xl font-semibold tabular-nums outline-none"
+          />
+          <button
+            type="button"
+            className="press grid size-14 place-items-center rounded-xl bg-surface-2"
+            onClick={() => setQty((n) => Math.min(9999, n + 1))}
+            aria-label="Mehr"
+          >
+            <Plus className="size-6" aria-hidden="true" />
+          </button>
+        </div>
+      </div>
+
+      <button
+        type="button"
+        role="switch"
+        aria-checked={stopped}
+        className={`press flex items-center gap-4 rounded-[20px] border p-4 text-left transition-colors ${
+          stopped ? "border-hot bg-hot-soft" : "border-line bg-surface"
+        }`}
+        onClick={() => setStopped((v) => !v)}
+      >
+        <span
+          className={`grid size-12 shrink-0 place-items-center rounded-2xl ${stopped ? "bg-hot text-white" : "bg-surface-2 text-muted"}`}
+        >
+          <TriangleAlert className="size-6" aria-hidden="true" />
+        </span>
+        <span className="flex-1">
+          <span className={`block text-base font-semibold ${stopped ? "text-hot" : ""}`}>Maschine steht still</span>
+          <span className="block text-sm text-muted">Dann ist es dringend.</span>
+        </span>
+        <span
+          aria-hidden="true"
+          className={`relative h-8 w-14 shrink-0 rounded-full transition-colors ${stopped ? "bg-hot" : "bg-line"}`}
+        >
+          <span
+            className={`absolute top-1 size-6 rounded-full bg-white shadow transition-[left] ${stopped ? "left-7" : "left-1"}`}
+          />
+        </span>
+      </button>
+
+      {showNote ? (
+        <Field label="Hinweis" hint="freiwillig">
+          <TextArea
+            value={note}
+            onChange={(event) => setNote(event.target.value)}
+            rows={2}
+            maxLength={140}
+            placeholder="z. B. Maschine 4, Auftrag 18420"
+            autoFocus
+          />
+        </Field>
+      ) : (
+        <button
+          type="button"
+          className="justify-self-start text-sm font-semibold text-brand"
+          onClick={() => setShowNote(true)}
+        >
+          + Hinweis dazuschreiben
+        </button>
+      )}
+
+      {error ? <ErrorText>{error}</ErrorText> : null}
+      <Button type="submit" full disabled={pending}>
+        {pending ? "Wird gesendet…" : "Senden"}
+      </Button>
+    </form>
+  );
+}

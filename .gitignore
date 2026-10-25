@@ -8,6 +8,7 @@ dist
 .env
 .env.*
 .node_modules.lock
-.grok/*
-!.grok/app-env.json
+
+
 AGENTS.md
+api/data

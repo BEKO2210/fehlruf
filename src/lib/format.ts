@@ -1,4 +1,4 @@
-import type { CallStatus, Urgency } from "@/lib/fehlruf";
+import type { CallStatus, Urgency } from "@/lib/api";
 
 const URGENCY_LABEL: Record<Urgency, string> = {
   sofort: "Sofort",
@@ -50,7 +50,8 @@ export function parseScan(raw: string): ScanResult | null {
   if (!text) return null;
   try {
     const url = new URL(text);
-    const match = url.pathname.match(/\/ruf\/([^/]+)/i);
+    // Neue Zettel: …/#/ruf/CODE, alte Zettel: …/ruf/CODE
+    const match = `${url.pathname}${url.hash}`.match(/\/ruf\/([^/?#]+)/i);
     if (match?.[1]) {
       const code = decodeURIComponent(match[1]).toUpperCase().replace(/\s+/g, "");
       if (/^[A-Z0-9-]{2,16}$/.test(code) && code !== "NEU") return { kind: "station", code };
@@ -77,6 +78,14 @@ export function waitLabel(ms: number, now: number): string {
   const rest = min % 60;
   if (hr < 24) return rest ? `${hr} Std ${rest} Min` : `${hr} Std`;
   return `${Math.floor(hr / 24)} Tg`;
+}
+
+/** Short form for small tiles: "0 Min", "47 Min", "3 Std", "2 Tg". */
+export function waitShort(ms: number, now: number): string {
+  const min = Math.floor(Math.max(0, now - ms) / 60000);
+  if (min < 60) return `${min} Min`;
+  const hr = Math.floor(min / 60);
+  return hr < 24 ? `${hr} Std` : `${Math.floor(hr / 24)} Tg`;
 }
 
 /** localStorage that never throws (private mode, blocked storage). */

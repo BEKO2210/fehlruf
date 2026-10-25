@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Camera } from "lucide-react";
 import { remember } from "@/lib/format";
 
 type Detector = {
@@ -133,25 +134,35 @@ export function Scanner({ onCode }: { onCode: (raw: string) => void }) {
 
   return (
     <div className="grid gap-3">
-      <div className="finder relative overflow-hidden rounded-xl border border-border bg-card">
+      <div className="relative aspect-[4/3] overflow-hidden rounded-[24px] bg-[#0b0d10]">
         <video ref={videoRef} className="h-full w-full object-cover" muted playsInline />
+        {/* Sucher: vier Ecken und eine laufende Linie */}
+        <div className="pointer-events-none absolute inset-x-8 top-1/2 h-32 -translate-y-1/2">
+          <span className="absolute top-0 left-0 size-7 rounded-tl-xl border-t-4 border-l-4 border-white/90" />
+          <span className="absolute top-0 right-0 size-7 rounded-tr-xl border-t-4 border-r-4 border-white/90" />
+          <span className="absolute bottom-0 left-0 size-7 rounded-bl-xl border-b-4 border-l-4 border-white/90" />
+          <span className="absolute right-0 bottom-0 size-7 rounded-br-xl border-r-4 border-b-4 border-white/90" />
+          {armed ? (
+            <span className="scanline absolute inset-x-3 top-1/2 h-0.5 rounded-full bg-brand shadow-[0_0_12px_2px_var(--brand)]" />
+          ) : null}
+        </div>
         {!armed ? (
-          <div className="absolute inset-0 flex items-center justify-center p-6">
+          <div className="absolute inset-0 flex flex-col items-center justify-end gap-3 bg-gradient-to-t from-black/70 via-black/20 to-transparent p-5">
             <button
               type="button"
-              className="press h-14 rounded-sm bg-primary px-6 text-lg font-medium text-primary-foreground"
+              className="press inline-flex h-14 items-center gap-2 rounded-2xl bg-brand px-6 text-base font-semibold text-brand-ink"
               onClick={() => {
                 setError(null);
                 setArmed(true);
               }}
             >
-              Kamera an
+              <Camera className="size-5" aria-hidden="true" />
+              Kamera starten
             </button>
           </div>
         ) : null}
-        <span className="pointer-events-none absolute inset-x-6 top-1/2 h-24 -translate-y-1/2 rounded-lg border-2 border-foreground/40" />
       </div>
-      {error ? <p className="text-sm text-hot">{error}</p> : null}
+      {error ? <p className="rounded-2xl bg-hot-soft px-4 py-3 text-sm font-medium text-hot">{error}</p> : null}
     </div>
   );
 }

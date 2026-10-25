@@ -1,82 +1,103 @@
 # Fehlruf
 
-PWA für die Halle: Wer ein Teil braucht, scannt den Barcode am Teil, tippt die Abteilung an (Name freiwillig) und sendet. Das Lager sieht es auf der Tafel und setzt die Prio.
+Wer ein Teil braucht, scannt den Barcode am Teil, tippt die Abteilung / Linie an (Name freiwillig) und sendet. Das Lager sieht es auf der Tafel und setzt die Prio.
+
+- **Seite:** statisch auf GitHub Pages (`https://beko2210.github.io/fehlruf/`)
+- **Daten:** kleine API auf dem Heimserver (`api/`), Docker, erreichbar über Cloudflare Tunnel
 
 Melden geht ohne Konto. Die Tafel ist mit einer PIN geschützt.
 
 ## Ablauf
 
-1. **Melden** (`/`) — Kamera öffnet sich (nach dem ersten Mal automatisch). Barcode vom Teil scannen: EAN, Code 128/39, QR, Data Matrix u. a. Ohne Barcode: Nummer eintippen.
-2. **Formular** — Teil steht drin. Abteilung antippen, Name freiwillig, Menge, „Maschine steht still“ (= Sofort). Abteilung und Name merkt sich das Handy, beim nächsten Mal bleibt nur Scannen + Senden.
-3. **Tafel** (`/tafel`, PIN) — offene Rufe nach Prio, dann am längsten wartend zuerst. Wartezeit ab 30 Min gelb, ab 2 Std rot. „Was fehlt gerade“ fasst gleiche Teile zusammen. Prio pro Ruf: Sofort / Heute / Normal. Status: Offen → Unterwegs → Erledigt. Pollt alle 4 Sekunden, „Ton an“ piept bei neuen Rufen.
-4. **QR-Zettel** (`/plaetze`, PIN, freiwillig) — ein Zettel pro Abteilung/Maschine. Wer ihn scannt, hat die Abteilung schon drin. Alte Zettel (`/ruf/CODE`) funktionieren weiter.
+1. **Melden** (`#/`): Die Kamera öffnet sich, nach dem ersten Mal automatisch. Sie liest EAN, Code 128/39, QR, Data Matrix u. a. Ohne Barcode: Nummer eintippen.
+2. **Formular** (`#/ruf/neu?teil=…`): Das Teil steht schon drin. Abteilung / Linie antippen, Name freiwillig, Menge, „Maschine steht still“ (= Sofort). Abteilung / Linie und Name merkt sich das Handy.
+3. **Tafel** (`#/tafel`, PIN):
+   - Sortierung: erst Prio, dann wer am längsten wartet.
+   - Wartezeit ab 30 Min gelb, ab 2 Std rot. „Was fehlt gerade“ fasst gleiche Teile zusammen.
+   - Prio Sofort / Heute / Normal, Status Offen → Unterwegs → Erledigt. Holt alle 4 Sekunden neu, auf Wunsch mit Ton.
+4. **QR-Zettel** (`#/plaetze`, PIN, freiwillig): ein Zettel pro Abteilung / Linie oder Maschine. Wer ihn scannt, hat die Abteilung / Linie schon drin.
+
+## Einrichten
+
+### 1. API auf dem Heimserver
+
+```bash
+git clone https://github.com/BEKO2210/fehlruf.git
+cd fehlruf/api
+docker compose up -d --build
+curl http://127.0.0.1:8787/api/health   # {"ok":true}
+```
+
+Die API hört nur auf `127.0.0.1:8787`. Die Daten liegen im Docker-Volume `fehlruf-data` (SQLite).
+
+### 2. Cloudflare Tunnel
+
+Im Tunnel einen Public Hostname anlegen, z. B. `fehlruf-api.deinedomain.de` → `http://localhost:8787`.
+
+Die API nimmt die echte Adresse aus `CF-Connecting-IP`. Das ist nur sicher, weil sie ausschließlich über den Tunnel erreichbar ist: Port nicht freigeben. Sonst `TRUST_CLOUDFLARE=0` setzen.
+
+### 3. GitHub Pages
+
+1. Repo → Settings → Pages → Source: **GitHub Actions**.
+2. Repo → Settings → Secrets and variables → Actions → **Variables**: `FEHLRUF_API_URL` = `https://fehlruf-api.deinedomain.de`.
+3. Auf `main` pushen. Der Workflow `GitHub Pages` baut und veröffentlicht.
+
+Ohne `FEHLRUF_API_URL` bricht der Deploy mit einer klaren Meldung ab.
+
+### 4. PIN
+
+Gleich nach dem ersten Deploy `…/fehlruf/#/tafel` öffnen und die PIN festlegen (6–12 Ziffern). Wer die Tafel zuerst öffnet, legt sie fest. Alternativ `FEHLRUF_PIN` in `api/compose.yml` setzen, die hat Vorrang.
 
 ## Sicherheit
 
-- PIN: Beim ersten Öffnen von `/tafel` wird sie festgelegt (6–12 Ziffern, PBKDF2-gehasht in `settings`). **Direkt nach dem Deploy selbst setzen**, sonst kann es jemand anderes tun. Alternativ `FEHLRUF_PIN` als Umgebungsvariable, die hat Vorrang.
-- Sitzung: httpOnly-Cookie `fehlruf_tafel`, HMAC-signiert, 30 Tage. PIN ändern loggt alle Geräte aus.
-- Raten: max. 8 Fehlversuche pro Adresse und 50 insgesamt in 15 Minuten.
-- Öffentlich sind nur `getCallForm` (Abteilungsnamen) und `createCall` (max. 12 Rufe/Minute pro Adresse und Instanz, max. 1000 offene Rufe).
+- PIN mit PBKDF2 gehasht. Das Token ist HMAC-signiert, gilt 30 Tage und liegt im `localStorage` des Geräts. PIN ändern meldet alle anderen Geräte ab.
+- Gesperrt wird nach 8 PIN-Fehlversuchen pro Adresse oder 50 insgesamt in 15 Minuten.
+- CORS: Nur Origins aus `ALLOWED_ORIGINS` bekommen eine Antwort, alle anderen ein 403.
+- Öffentlich sind nur `GET /api/form` (Namen der Abteilungen / Linien), `POST /api/calls` (12/Min pro Adresse, max. 1000 offene), `GET /api/state`, `POST /api/setup` und `POST /api/login`.
+- Container: `read_only`, keine Capabilities, kein Root. Die API hat keine npm-Abhängigkeiten.
 - Aufbewahrung: Namen werden nach 30 Tagen geleert, Erledigtes nach 90 Tagen gelöscht.
-- Jede neue Server-Funktion, die Rufe liest oder ändert, ruft zuerst `requireAdmin()`.
 
-## Stack
+**Ausfall:** Läuft der Heimserver nicht, kann niemand melden. Die Seite zeigt dann „Keine Verbindung zum Server“.
 
-- TanStack Start / Router, React 19, Vite, Tailwind 4
-- Server-Funktionen in [`src/lib/fehlruf.ts`](src/lib/fehlruf.ts)
-- Postgres über [`src/lib/db.ts`](src/lib/db.ts): Neon, sobald `DATABASE_URL` gesetzt ist, sonst PGLite im Speicher (lokal, Daten weg nach Neustart)
-- QR erzeugen: `qrcode`. Scannen: `BarcodeDetector`, sonst `@zxing/browser`
-- UI-Sprache: Deutsch
+**Backup:**
 
-## Routen
+```bash
+docker run --rm -v api_fehlruf-data:/data -v "$PWD":/b alpine cp /data/fehlruf.db /b/
+```
 
-| Pfad | Datei | Was |
+Den Volume-Namen zeigt `docker volume ls`.
+
+## API
+
+| Methode | Pfad | PIN |
 |---|---|---|
-| `/` | `src/routes/index.tsx` | Teil scannen |
-| `/ruf/$code?teil=` | `src/routes/ruf.$code.tsx` | Formular. `neu` = ohne Zettel |
-| `/tafel` | `src/routes/tafel.tsx` | Tafel, PIN |
-| `/plaetze` | `src/routes/plaetze.tsx` | QR-Zettel, PIN |
-| `/scan` | `src/routes/scan.tsx` | leitet auf `/` um |
+| GET | `/api/health` | – |
+| GET | `/api/form?code=` | – |
+| POST | `/api/calls` | – |
+| GET | `/api/state` | – |
+| POST | `/api/setup`, `/api/login` | – |
+| POST | `/api/pin` | ja |
+| GET | `/api/calls` | ja |
+| PATCH | `/api/calls/:id` (`status`, `urgency`) | ja |
+| GET/POST | `/api/stations` | ja |
+| DELETE | `/api/stations/:code` | ja |
 
-Shell und Navigation: [`src/components/shell.tsx`](src/components/shell.tsx).
-
-## Daten
-
-Schema: [`migrations/0002_fehlruf.sql`](migrations/0002_fehlruf.sql) und [`0005`](migrations/0005_teile_scannen_pin.sql). Angewendete Dateien nicht mehr ändern, die nächste heißt `migrations/0006_….sql`.
-
-`stations`: `code` (PK, `A–Z`, `0–9`, `-`, 2–16 Zeichen, nicht `NEU`), `name`, `line`.
-
-`calls`: `id` (6 Zeichen), `station_code` (leer erlaubt, kein FK), `line` (= Abteilung), `part_no`, `part_name`, `qty` (1–9999), `urgency` (`sofort` | `heute` | `normal`, = Prio), `note` (max. 140, kein `@`), `requester` (Name, freiwillig, max. 40), `status` (`open` | `underway` | `done`).
-
-`settings`: `pin_hash`, `session_secret`. `pin_failures`: gehashte Adresse + Zeit, nach einem Tag weg.
-
-Server-Funktionen in [`src/lib/fehlruf.ts`](src/lib/fehlruf.ts), PIN-Logik in [`src/lib/admin.server.ts`](src/lib/admin.server.ts):
-
-- Öffentlich: `getCallForm`, `createCall`, `tafelState`, `tafelSetup`, `tafelLogin`
-- Mit PIN: `listCalls`, `setCallStatus`, `setCallUrgency`, `listStations`, `saveStation`, `deleteStation`, `tafelChangePin`, `tafelLogout`
+Daten: `calls.line` = Abteilung / Linie, `urgency` = Prio, `requester` = Name (freiwillig).
 
 ## Lokal
 
 ```bash
 npm install
-npm run dev
+npm run api    # API auf :8787, Datenbank in api/data/
+npm run dev    # Seite auf :5173
+npm test       # API-Tests
+npm run build  # tsc + vite build nach dist/
 ```
 
-Dev-Server: `http://127.0.0.1:8080` (`npm run dev`, nicht `vite` direkt).
-
-```bash
-npm run typecheck
-npm run build
-```
-
-`npm run build` migriert gegen `DATABASE_URL`, wenn die Variable da ist. Ohne sie überspringt das Script die Migration; PGLite zieht `migrations/*.sql` beim Start selbst.
-
-Eigene Umgebung nur als `.env`, nicht committen. Reicht `DATABASE_URL` für echtes Postgres.
+`VITE_API_URL` zeigt beim Bauen auf die API, Standard ist `http://localhost:8787`.
 
 ## Weiterbauen
 
-- Neue Migrationen nur als neue Datei ab `0006`.
-- Kein `authMiddleware` und kein `user_id`. Die Tafel hängt an der PIN, Melden bleibt offen.
-- Name ist freiwillig und wird nach 30 Tagen geleert. Keine Auswertungen pro Person bauen (Betriebsrat, DSGVO).
-- Router bleibt `export function getRouter()` in [`src/router.tsx`](src/router.tsx). `server/middleware/grok-pwa.ts` und `public/__grok/` nicht ausbauen, sonst geht die Install-Seite der PWA kaputt.
-- `.grok/app-env.json` hält `deploy.database: true`, damit beim Veröffentlichen eine Datenbank da ist. `VITE_AUTH_ENABLED` bleibt `false`.
+- Jede neue Route in `api/server.mjs` ist automatisch PIN-pflichtig, außer sie steht in `PUBLIC`.
+- Routing über Hash (`#/tafel`), weil GitHub Pages keine Umleitung auf `index.html` kennt. QR-Zettel enthalten `…/#/ruf/CODE`. Alte Zettel mit `/ruf/CODE` erkennt der Scanner weiterhin.
+- Keine Auswertungen pro Person bauen (Betriebsrat, DSGVO).
