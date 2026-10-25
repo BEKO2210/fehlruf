@@ -13,7 +13,7 @@ export const Route = createRootRoute({
       { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
       { title: APP_NAME },
       { name: "theme-color", content: "#0e0f11" },
-      { name: "description", content: "Fehlteile aus der Produktion per QR an die Tafel rufen." },
+      { name: "description", content: "Fehlende Teile scannen und ans Lager melden." },
     ],
     links: [
       { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },
