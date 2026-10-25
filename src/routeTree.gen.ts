@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as PlaetzeRouteImport } from './routes/plaetze'
 import { Route as ScanRouteImport } from './routes/scan'
+import { Route as TafelRouteImport } from './routes/tafel'
 import { Route as RufCodeRouteImport } from './routes/ruf.$code'
 
 const IndexRoute = IndexRouteImport.update({
@@ -29,6 +30,11 @@ const ScanRoute = ScanRouteImport.update({
   path: '/scan',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TafelRoute = TafelRouteImport.update({
+  id: '/tafel',
+  path: '/tafel',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RufCodeRoute = RufCodeRouteImport.update({
   id: '/ruf/$code',
   path: '/ruf/$code',
@@ -39,12 +45,14 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/plaetze': typeof PlaetzeRoute
   '/scan': typeof ScanRoute
+  '/tafel': typeof TafelRoute
   '/ruf/$code': typeof RufCodeRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/plaetze': typeof PlaetzeRoute
   '/scan': typeof ScanRoute
+  '/tafel': typeof TafelRoute
   '/ruf/$code': typeof RufCodeRoute
 }
 export interface FileRoutesById {
@@ -52,20 +60,22 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/plaetze': typeof PlaetzeRoute
   '/scan': typeof ScanRoute
+  '/tafel': typeof TafelRoute
   '/ruf/$code': typeof RufCodeRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/plaetze' | '/scan' | '/ruf/$code'
+  fullPaths: '/' | '/plaetze' | '/scan' | '/tafel' | '/ruf/$code'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/plaetze' | '/scan' | '/ruf/$code'
-  id: '__root__' | '/' | '/plaetze' | '/scan' | '/ruf/$code'
+  to: '/' | '/plaetze' | '/scan' | '/tafel' | '/ruf/$code'
+  id: '__root__' | '/' | '/plaetze' | '/scan' | '/tafel' | '/ruf/$code'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   PlaetzeRoute: typeof PlaetzeRoute
   ScanRoute: typeof ScanRoute
+  TafelRoute: typeof TafelRoute
   RufCodeRoute: typeof RufCodeRoute
 }
 
@@ -92,6 +102,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ScanRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/tafel': {
+      id: '/tafel'
+      path: '/tafel'
+      fullPath: '/tafel'
+      preLoaderRoute: typeof TafelRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/ruf/$code': {
       id: '/ruf/$code'
       path: '/ruf/$code'
@@ -106,6 +123,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   PlaetzeRoute: PlaetzeRoute,
   ScanRoute: ScanRoute,
+  TafelRoute: TafelRoute,
   RufCodeRoute: RufCodeRoute,
 }
 export const routeTree = rootRouteImport

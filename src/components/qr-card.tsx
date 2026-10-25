@@ -36,7 +36,7 @@ export function QrCard({ station }: { station: StationRow }) {
         aria-label={`QR-Code für ${station.code}`}
       />
       <p className="mt-3 text-center text-sm text-muted-foreground">
-        Handy-Kamera drauf. Linie beim Senden prüfen.
+        Handy-Kamera drauf, dann das Teil scannen.
       </p>
     </article>
   );

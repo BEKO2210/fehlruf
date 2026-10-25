@@ -1,11 +1,10 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { ClipboardList, QrCode, ScanLine } from "lucide-react";
+import { ClipboardList, ScanLine } from "lucide-react";
 import type { ReactNode } from "react";
 
 const items = [
-  { to: "/", label: "Tafel", icon: ClipboardList },
-  { to: "/scan", label: "Scannen", icon: ScanLine },
-  { to: "/plaetze", label: "Plätze", icon: QrCode },
+  { to: "/", label: "Melden", icon: ScanLine },
+  { to: "/tafel", label: "Tafel", icon: ClipboardList },
 ] as const;
 
 export function Shell({ children }: { children: ReactNode }) {
@@ -23,9 +22,12 @@ export function Shell({ children }: { children: ReactNode }) {
       </header>
       <main className="shell-pad mx-auto w-full max-w-3xl px-4 pt-4">{children}</main>
       <nav className="no-print dock fixed inset-x-0 bottom-0 z-20 border-t border-border bg-background">
-        <ul className="mx-auto grid w-full max-w-3xl grid-cols-3">
+        <ul className="mx-auto grid w-full max-w-3xl grid-cols-2">
           {items.map((item) => {
-            const active = item.to === "/" ? path === "/" : path.startsWith(item.to);
+            const active =
+              item.to === "/"
+                ? path === "/" || path.startsWith("/ruf")
+                : path.startsWith(item.to) || path.startsWith("/plaetze");
             const Icon = item.icon;
             return (
               <li key={item.to}>
