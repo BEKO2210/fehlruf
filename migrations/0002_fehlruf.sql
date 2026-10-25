@@ -24,11 +24,3 @@ create table if not exists calls (
 
 create index if not exists calls_status_created_idx on calls (status, created_at desc);
 
-insert into stations (code, name, line) values
-  ('L1-04', 'Platz 04', 'Linie 1'),
-  ('L1-11', 'Platz 11', 'Linie 1'),
-  ('L2-02', 'Platz 02', 'Linie 2'),
-  ('L3-07', 'Platz 07', 'Linie 3'),
-  ('MONT', 'Montage', 'Montage')
-on conflict (code) do nothing;
-

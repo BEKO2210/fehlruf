@@ -91,13 +91,17 @@ function PlacesPage() {
         </div>
       </form>
 
-      <ul className="grid gap-3 sm:grid-cols-2">
-        {stations.map((station) => (
-          <li key={station.code}>
-            <QrCard station={station} />
-          </li>
-        ))}
-      </ul>
+      {stations.length === 0 ? (
+        <p className="text-sm text-muted-foreground">Noch kein Platz. Oben anlegen, dann den Zettel drucken.</p>
+      ) : (
+        <ul className="grid gap-3 sm:grid-cols-2">
+          {stations.map((station) => (
+            <li key={station.code}>
+              <QrCard station={station} />
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
