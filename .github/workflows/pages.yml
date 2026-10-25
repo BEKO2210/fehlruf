@@ -19,15 +19,20 @@ jobs:
     runs-on: ubuntu-latest
     env:
       # Repo → Settings → Secrets and variables → Actions → Variables
-      VITE_API_URL: ${{ vars.FEHLRUF_API_URL }}
+      # (als Secret gespeichert geht auch)
+      VITE_API_URL: ${{ vars.FEHLRUF_API_URL || secrets.FEHLRUF_API_URL }}
     steps:
       - uses: actions/checkout@v4
       - name: API-Adresse prüfen
         run: |
           if [ -z "$VITE_API_URL" ]; then
-            echo "::error::Repo-Variable FEHLRUF_API_URL fehlt (z. B. https://fehlruf-api.deinedomain.de)"
+            echo "::error::FEHLRUF_API_URL fehlt. Settings → Secrets and variables → Actions → Reiter Variables → New repository variable (nicht unter Environments)."
             exit 1
           fi
+          case "$VITE_API_URL" in
+            https://*) ;;
+            *) echo "::error::FEHLRUF_API_URL muss mit https:// beginnen"; exit 1 ;;
+          esac
       - uses: actions/setup-node@v4
         with:
           node-version: 22
