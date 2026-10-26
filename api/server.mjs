@@ -17,7 +17,7 @@ const PBKDF2_ROUNDS = 210_000;
 const MAX_FAILS_PER_IP = 8;
 const MAX_FAILS_TOTAL = 50;
 const FAIL_WINDOW_MS = 15 * 60_000;
-const CALLS_PER_MINUTE = 12;
+const CALLS_PER_MINUTE = 30;
 const MAX_OPEN_CALLS = 1000;
 const MAX_BODY = 16 * 1024;
 
@@ -26,6 +26,27 @@ const URGENCIES = new Set(["sofort", "heute", "normal"]);
 const CODE_RE = /^[A-Z0-9-]{2,16}$/;
 const ID_RE = /^[A-Z0-9]{6}$/;
 const NAME_RE = /^[\p{L} .'-]*$/u;
+const DEVICE_RE = /^[A-Za-z0-9_-]{22,64}$/;
+const berlinDate = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "Europe/Berlin",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23",
+});
+
+const NEW_COLUMNS = {
+  order_no: "text not null default ''",
+  reply: "text not null default ''",
+  reply_at: "integer null",
+  seen_at: "integer null",
+  sent_at: "integer null",
+  received_at: "integer null",
+  received_by: "text not null default ''",
+  owner_hash: "text not null default ''",
+};
 
 const SCHEMA = `
 create table if not exists stations (
@@ -91,6 +112,22 @@ function newId() {
   return out;
 }
 
+function berlinMidnight(t, days) {
+  const parts = Object.fromEntries(berlinDate.formatToParts(t).map(({ type, value }) => [type, Number(value)]));
+  const utc = Date.UTC(parts.year, parts.month - 1, parts.day - days + 1);
+  const probe = utc - 3 * 60 * 60_000;
+  const local = Object.fromEntries(berlinDate.formatToParts(probe).map(({ type, value }) => [type, Number(value)]));
+  const offset = Date.UTC(local.year, local.month - 1, local.day, local.hour, local.minute) - probe;
+  return utc - offset;
+}
+
+function median(values) {
+  if (!values.length) return null;
+  values.sort((a, b) => a - b);
+  const middle = Math.floor(values.length / 2);
+  return values.length % 2 ? values[middle] : (values[middle - 1] + values[middle]) / 2;
+}
+
 function mapCall(row) {
   return {
     id: row.id,
@@ -102,6 +139,13 @@ function mapCall(row) {
     urgency: row.urgency,
     note: row.note,
     requester: row.requester,
+    orderNo: row.order_no,
+    reply: row.reply,
+    replyAt: row.reply_at,
+    seenAt: row.seen_at,
+    sentAt: row.sent_at,
+    receivedAt: row.received_at,
+    receivedBy: row.received_by,
     status: row.status,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -119,6 +163,11 @@ export function createApp({
   const db = new DatabaseSync(dbPath);
   db.exec("pragma journal_mode = wal; pragma foreign_keys = on;");
   db.exec(SCHEMA);
+  const columns = new Set(db.prepare("pragma table_info(calls)").all().map((column) => column.name));
+  for (const [name, definition] of Object.entries(NEW_COLUMNS)) {
+    if (!columns.has(name)) db.exec(`alter table calls add column ${name} ${definition}`);
+  }
+  db.exec("create index if not exists calls_owner_hash_idx on calls (owner_hash)");
 
   const origins = new Set(allowedOrigins.map((o) => o.trim().replace(/\/$/, "")).filter(Boolean));
   const callHits = new Map();
@@ -128,17 +177,19 @@ export function createApp({
   const putSetting = (key, value) =>
     db.prepare("insert into settings (key, value) values (?, ?) on conflict(key) do update set value = excluded.value").run(key, value);
 
-  function secret() {
-    let s = getSetting("session_secret");
+  function settingSecret(key) {
+    let s = getSetting(key);
     if (!s) {
       s = randomBytes(32).toString("hex");
-      db.prepare("insert or ignore into settings (key, value) values ('session_secret', ?)").run(s);
-      s = getSetting("session_secret");
+      db.prepare("insert or ignore into settings (key, value) values (?, ?)").run(key, s);
+      s = getSetting(key);
     }
     return s;
   }
 
-  const hmac = (message) => createHmac("sha256", secret()).update(message).digest("hex");
+  settingSecret("device_secret");
+  const hmac = (message) => createHmac("sha256", settingSecret("session_secret")).update(message).digest("hex");
+  const deviceHash = (device) => createHmac("sha256", settingSecret("device_secret")).update(`device.${device}`).digest("hex");
   const hashPin = async (pin, salt) => (await pbkdf2Async(pin, salt, PBKDF2_ROUNDS, 32, "sha256")).toString("hex");
   const pinConfigured = () => Boolean(envPin) || getSetting("pin_hash") !== null;
 
@@ -217,6 +268,9 @@ export function createApp({
       const partNo = requiredText(body.partNo, 64, "Teil");
       const note = text(body.note, 140);
       if (note.includes("@")) throw bad("Hinweis ohne E-Mail");
+      const orderNo = text(body.orderNo, 32);
+      if (orderNo.includes("@")) throw bad("Auftrag ohne E-Mail");
+      const ownerHash = typeof body.device === "string" && DEVICE_RE.test(body.device) ? deviceHash(body.device) : "";
       const requester = text(body.requester, 40);
       if (!NAME_RE.test(requester)) throw bad("Name nur mit Buchstaben");
       const qty = Number(body.qty);
@@ -233,10 +287,33 @@ export function createApp({
       const id = newId();
       const t = now();
       db.prepare(
-        `insert into calls (id, station_code, line, part_no, qty, urgency, note, requester, status, created_at, updated_at)
-         values (?, ?, ?, ?, ?, ?, ?, ?, 'open', ?, ?)`,
-      ).run(id, stationCode, line, partNo, qty, urgency, note, requester, t, t);
+        `insert into calls (id, station_code, line, part_no, qty, urgency, note, requester, order_no, owner_hash, status, created_at, updated_at)
+         values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', ?, ?)`,
+      ).run(id, stationCode, line, partNo, qty, urgency, note, requester, orderNo, ownerHash, t, t);
       return { status: 201, data: mapCall(db.prepare("select * from calls where id = ?").get(id)) };
+    },
+
+    "POST /api/mine": ({ body }) => {
+      if (typeof body.device !== "string" || !DEVICE_RE.test(body.device)) throw bad("Geräteschlüssel ungültig");
+      return db
+        .prepare("select * from calls where owner_hash = ? and (status <> 'done' or updated_at >= ?) order by created_at desc limit 50")
+        .all(deviceHash(body.device), now() - 86_400_000)
+        .map(mapCall);
+    },
+
+    "POST /api/calls/:id/received": ({ params, body }) => {
+      const id = params.id.toUpperCase();
+      if (!ID_RE.test(id)) throw bad("Ruf ungültig");
+      const ownerHash = typeof body.device === "string" && DEVICE_RE.test(body.device) ? deviceHash(body.device) : "";
+      const row = db.prepare("select * from calls where id = ? and owner_hash = ? and owner_hash <> ''").get(id, ownerHash);
+      if (!row) throw new HttpError(404, "Ruf nicht gefunden");
+      if (row.status !== "done") {
+        const t = now();
+        db.prepare(
+          "update calls set status = 'done', received_at = ?, received_by = 'requester', sent_at = coalesce(sent_at, ?), updated_at = ? where id = ?",
+        ).run(t, t, t, id);
+      }
+      return mapCall(db.prepare("select * from calls where id = ?").get(id));
     },
 
     "GET /api/state": ({ req }) => ({
@@ -277,7 +354,11 @@ export function createApp({
       return issueToken();
     },
 
-    "GET /api/calls": () => {
+    "GET /api/calls": ({ url }) => {
+      // Nur wenn die Tafel wirklich vorne ist, sonst wäre "gesehen" gelogen.
+      if (url.searchParams.get("seen") === "1") {
+        db.prepare("update calls set seen_at = ? where status = 'open' and seen_at is null").run(now());
+      }
       const rows = db
         .prepare("select * from calls where status <> 'done' or updated_at > ? order by created_at desc limit 300")
         .all(now() - 2 * 86_400_000);
@@ -293,8 +374,86 @@ export function createApp({
       const urgency = body.urgency === undefined ? row.urgency : String(body.urgency);
       if (!STATUSES.has(status)) throw bad("Status ungültig");
       if (!URGENCIES.has(urgency)) throw bad("Prio ungültig");
-      db.prepare("update calls set status = ?, urgency = ?, updated_at = ? where id = ?").run(status, urgency, now(), id);
+      const reply = body.reply === undefined ? row.reply : text(body.reply, 80);
+      if (reply.includes("@")) throw bad("Rückmeldung ohne E-Mail");
+      const t = now();
+      let sentAt = row.sent_at;
+      let receivedAt = row.received_at;
+      let receivedBy = row.received_by;
+      if (status === "underway") sentAt ??= t;
+      if (status === "done") {
+        sentAt ??= t;
+        receivedAt ??= t;
+        receivedBy ||= "lager";
+      }
+      if (status === "open") {
+        sentAt = null;
+        receivedAt = null;
+        receivedBy = "";
+      }
+      const replyAt = reply === row.reply ? row.reply_at : reply ? t : null;
+      db.prepare(
+        `update calls set status = ?, urgency = ?, reply = ?, reply_at = ?, sent_at = ?, received_at = ?,
+         received_by = ?, updated_at = ? where id = ?`,
+      ).run(status, urgency, reply, replyAt, sentAt, receivedAt, receivedBy, t, id);
       return mapCall(db.prepare("select * from calls where id = ?").get(id));
+    },
+
+    "GET /api/stats": ({ url }) => {
+      const raw = url.searchParams.get("days") ?? "1";
+      if (!["1", "7", "30"].includes(raw)) throw bad("Zeitraum ungültig");
+      const days = Number(raw);
+      const from = berlinMidnight(now(), days);
+      const rows = db.prepare("select * from calls where created_at >= ?").all(from);
+      const sentTimes = [];
+      const receivedTimes = [];
+      const parts = new Map();
+      const lines = new Map();
+      let urgent = 0;
+      let open = 0;
+      let confirmedByRequester = 0;
+      let closedByLager = 0;
+      for (const row of rows) {
+        if (row.urgency === "sofort") urgent += 1;
+        if (row.status !== "done") open += 1;
+        if (row.received_by === "requester") confirmedByRequester += 1;
+        if (row.received_by === "lager") closedByLager += 1;
+        if (row.sent_at !== null) sentTimes.push(row.sent_at - row.created_at);
+        if (row.received_at !== null) receivedTimes.push(row.received_at - row.created_at);
+        const part = parts.get(row.part_no) ?? { partNo: row.part_no, count: 0, qty: 0 };
+        part.count += 1;
+        part.qty += row.qty;
+        parts.set(row.part_no, part);
+        const line = lines.get(row.line) ?? { line: row.line, count: 0, urgent: 0, times: [] };
+        line.count += 1;
+        if (row.urgency === "sofort") line.urgent += 1;
+        if (row.received_at !== null) line.times.push(row.received_at - row.created_at);
+        lines.set(row.line, line);
+      }
+      const toReceivedP90Ms = receivedTimes.length
+        ? [...receivedTimes].sort((a, b) => a - b)[Math.ceil(receivedTimes.length * 0.9) - 1]
+        : null;
+      return {
+        days,
+        from,
+        total: rows.length,
+        urgent,
+        open,
+        toSentMedianMs: median(sentTimes),
+        toReceivedMedianMs: median(receivedTimes),
+        toReceivedP90Ms,
+        confirmedByRequester,
+        closedByLager,
+        parts: [...parts.values()].sort((a, b) => b.count - a.count || a.partNo.localeCompare(b.partNo)).slice(0, 10),
+        lines: [...lines.values()]
+          .sort((a, b) => b.count - a.count || a.line.localeCompare(b.line))
+          .map(({ line, count, urgent: lineUrgent, times }) => ({
+            line,
+            count,
+            urgent: lineUrgent,
+            toReceivedMedianMs: median(times),
+          })),
+      };
     },
 
     "GET /api/stations": () => db.prepare("select code, name, line from stations order by line, code").all(),
@@ -324,6 +483,8 @@ export function createApp({
     "GET /api/health",
     "GET /api/form",
     "POST /api/calls",
+    "POST /api/mine",
+    "POST /api/calls/:id/received",
     "GET /api/state",
     "POST /api/setup",
     "POST /api/login",
