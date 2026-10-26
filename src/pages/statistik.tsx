@@ -52,6 +52,7 @@ function Board({ onLocked }: { onLocked: () => void }) {
   }, [days, onLocked]);
 
   const closed = stats ? stats.confirmedByRequester + stats.closedByLager : 0;
+  const received = closed;
   const maxLine = Math.max(1, ...(stats?.lines.map((l) => l.count) ?? [1]));
 
   return (
@@ -84,17 +85,18 @@ function Board({ onLocked }: { onLocked: () => void }) {
       ) : (
         <>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-            <Tile value={String(stats.total)} label="Rufe" />
+            <Tile value={String(stats.total)} label={stats.total === 1 ? "Ruf" : "Rufe"} />
             <Tile value={String(stats.urgent)} label="davon dringend" hot={stats.urgent > 0} />
-            <Tile value={duration(stats.toSentMedianMs)} label="bis gesendet (typisch)" />
-            <Tile value={duration(stats.toReceivedMedianMs)} label="bis erhalten (typisch)" />
+            <Tile value={duration(stats.toSentMedianMs)} label="bis gesendet (meist)" />
+            <Tile value={duration(stats.toReceivedMedianMs)} label="bis erhalten (meist)" />
           </div>
           <p className="-mt-2 text-sm text-muted">
-            „Typisch“ = die Hälfte war schneller. 9 von 10 Rufen waren nach {duration(stats.toReceivedP90Ms)} da.
+            „Meist“ = die Hälfte der Rufe war schneller.
+            {received >= 10 ? ` 9 von 10 waren nach ${duration(stats.toReceivedP90Ms)} da.` : ""}
             {closed > 0
-              ? ` Erhalt bestätigt: ${stats.confirmedByRequester} vom Anforderer, ${stats.closedByLager} vom Lager.`
+              ? ` Erhalt bestätigt: ${stats.confirmedByRequester} vom Anforderer, ${stats.closedByLager} vom Lager geschlossen.`
               : ""}
-            {stats.open > 0 ? ` ${stats.open} noch offen.` : ""}
+            {stats.open > 0 ? ` ${stats.open} noch nicht erhalten.` : ""}
           </p>
 
           <section className="card p-4">
@@ -105,12 +107,12 @@ function Board({ onLocked }: { onLocked: () => void }) {
                   <div className="flex items-baseline justify-between gap-3 text-sm">
                     <span className="truncate font-semibold">{line.line}</span>
                     <span className="shrink-0 text-muted tabular-nums">
-                      {line.count} Rufe{line.urgent ? ` · ${line.urgent} dringend` : ""} ·{" "}
-                      {duration(line.toReceivedMedianMs)}
+                      {line.count} {line.count === 1 ? "Ruf" : "Rufe"}{line.urgent ? ` · ${line.urgent} dringend` : ""}
+                      {line.toReceivedMedianMs !== null ? ` · meist ${duration(line.toReceivedMedianMs)}` : ""}
                     </span>
                   </div>
                   <div className="h-2 overflow-hidden rounded-full bg-surface-2">
-                    <div className="h-full rounded-full bg-brand" style={{ width: `${(line.count / maxLine) * 100}%` }} />
+                    <div className="h-full rounded-full bg-brand-fill" style={{ width: `${(line.count / maxLine) * 100}%` }} />
                   </div>
                 </li>
               ))}

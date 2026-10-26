@@ -62,7 +62,7 @@ export function MeldenPage() {
             type="submit"
             disabled={!typed.trim()}
             aria-label="Weiter"
-            className="press grid size-14 shrink-0 place-items-center rounded-2xl bg-brand text-brand-ink disabled:opacity-40"
+            className="press grid size-14 shrink-0 place-items-center rounded-2xl bg-brand-fill text-brand-ink disabled:bg-surface-2 disabled:text-muted"
           >
             <ArrowRight className="size-6" aria-hidden="true" />
           </button>

@@ -80,7 +80,7 @@ export function RufPage() {
         </p>
         <Link
           to="/meine"
-          className="press inline-flex h-14 items-center justify-center gap-2 rounded-2xl bg-brand text-base font-semibold text-brand-ink"
+          className="press inline-flex h-14 items-center justify-center gap-2 rounded-2xl bg-brand-fill text-base font-semibold text-brand-ink"
         >
           <ClipboardList className="size-5" aria-hidden="true" />
           Meine Rufe ansehen
@@ -156,7 +156,10 @@ export function RufPage() {
           <span className="block text-xs font-semibold tracking-wider text-subtle uppercase">Teil</span>
           <input
             value={partNo}
-            onChange={(event) => setPartNo(event.target.value)}
+            onChange={(event) => {
+              setPartNo(event.target.value);
+              setError(null);
+            }}
             placeholder="Nummer vom Teil"
             autoComplete="off"
             autoCapitalize="characters"
@@ -167,7 +170,7 @@ export function RufPage() {
           <button
             type="button"
             aria-label="Neu scannen"
-            className="press grid size-11 shrink-0 place-items-center rounded-xl bg-surface-2 text-text"
+            className="press grid size-12 shrink-0 place-items-center rounded-xl bg-surface-2 text-text"
             onClick={() => setScanning(true)}
           >
             <ScanLine className="size-5" aria-hidden="true" />
@@ -226,7 +229,7 @@ export function RufPage() {
             role="radio"
             aria-checked={stopped}
             className={`press flex h-20 items-center justify-center gap-2 rounded-[20px] border-2 px-3 text-center text-base leading-tight font-bold ${
-              stopped ? "border-hot bg-hot text-white" : "border-line bg-surface text-hot"
+              stopped ? "border-hot bg-hot-fill text-white" : "border-line bg-surface text-hot"
             }`}
             onClick={() => setStopped(true)}
           >
@@ -240,7 +243,10 @@ export function RufPage() {
         <Field label="Abteilung / Linie">
           <TextInput
             value={dept}
-            onChange={(event) => setDept(event.target.value)}
+            onChange={(event) => {
+              setDept(event.target.value);
+              setError(null);
+            }}
             placeholder="z. B. Montage oder Linie 3"
             autoComplete="off"
             autoCapitalize="words"
@@ -250,7 +256,11 @@ export function RufPage() {
         {choices.length > 0 ? (
           <div className="flex flex-wrap gap-2">
             {choices.map((item) => (
-              <Chip key={item} size="lg" active={dept === item} onClick={() => setDept(item)}>
+              <Chip key={item} size="lg" active={dept === item} onClick={() => {
+                  setDept(item);
+                  setError(null);
+                }}
+              >
                 {item}
               </Chip>
             ))}
@@ -295,16 +305,17 @@ export function RufPage() {
       ) : (
         <button
           type="button"
-          className="justify-self-start text-sm font-semibold text-brand"
+          className="min-h-12 justify-self-start text-base font-semibold text-brand"
           onClick={() => setShowNote(true)}
         >
           + Hinweis dazuschreiben
         </button>
       )}
 
-      {error ? <ErrorText>{error}</ErrorText> : null}
-      <div className="sticky bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-10 -mx-4 bg-bg/90 px-4 py-2 backdrop-blur-md">
-        <Button type="submit" full disabled={pending} className={`h-16 text-lg ${stopped ? "!bg-hot !text-white" : ""}`}>
+      {/* Fehler direkt über dem Knopf, sonst verschwindet er hinter der Leiste. */}
+      <div className="sticky bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-10 -mx-4 grid gap-2 bg-bg/90 px-4 py-2 backdrop-blur-md">
+        {error ? <ErrorText>{error}</ErrorText> : null}
+        <Button type="submit" full disabled={pending} className={`h-16 text-lg ${stopped ? "!bg-hot-fill !text-white" : ""}`}>
           {pending ? "Wird gesendet…" : stopped ? "Dringend melden" : "Teil melden"}
         </Button>
       </div>

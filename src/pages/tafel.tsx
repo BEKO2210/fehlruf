@@ -10,9 +10,9 @@ import {
   uniqueLines,
   URGENCY_RANK,
   relativeWhen,
+  replyTone,
   urgencyLabel,
   waitLabel,
-  waitShort,
   waitTone,
 } from "@/lib/format";
 
@@ -280,7 +280,7 @@ function Board({ onLocked }: { onLocked: () => void }) {
         <Stat label="Dringend" value={String(urgent)} tone={urgent > 0 ? "hot" : undefined} />
         <Stat
           label="Längste Wartezeit"
-          value={active.length ? waitShort(oldest, now) : "–"}
+          value={active.length ? waitLabel(oldest, now) : "–"}
           tone={active.length ? toneOf(worst) : undefined}
         />
       </div>
@@ -289,14 +289,17 @@ function Board({ onLocked }: { onLocked: () => void }) {
 
       <div aria-live="assertive">
         {banner ? (
-          <div className="rise flex items-center gap-3 rounded-2xl bg-brand px-4 py-3 text-brand-ink" onClick={() => setBanner(null)}>
+          <div
+            className={`rise flex items-center gap-3 rounded-2xl px-4 py-3 text-white ${banner.startsWith("DRINGEND") ? "bg-hot-fill" : "bg-brand-fill"}`}
+            onClick={() => setBanner(null)}
+          >
             <span className="rounded-full bg-white/20 px-2 py-0.5 text-xs font-bold uppercase">Neu</span>
             <span className="min-w-0 truncate text-sm font-medium">{banner}</span>
           </div>
         ) : null}
       </div>
 
-      <MissingSummary calls={active} />
+      {filter === "open" ? <MissingSummary calls={open} /> : null}
 
       <div className="grid grid-cols-3 gap-1 rounded-2xl bg-surface-2 p-1" role="tablist" aria-label="Status">
         {TABS.map(([key, label]) => (
@@ -305,7 +308,7 @@ function Board({ onLocked }: { onLocked: () => void }) {
             type="button"
             role="tab"
             aria-selected={filter === key}
-            className={`press h-11 rounded-xl text-sm font-semibold tabular-nums ${
+            className={`press h-12 rounded-xl text-sm font-semibold tabular-nums ${
               filter === key ? "bg-surface text-text shadow-sm" : "text-muted"
             }`}
             onClick={() => {
@@ -319,7 +322,7 @@ function Board({ onLocked }: { onLocked: () => void }) {
       </div>
 
       {depts.length > 1 ? (
-        <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
+        <div className="flex flex-wrap gap-2">
           <Chip active={dept === "alle"} onClick={() => setDept("alle")}>
             Alle
           </Chip>
@@ -366,7 +369,7 @@ function Stat({ label, value, tone }: { label: string; value: string; tone?: "ho
   const color = tone === "hot" ? "text-hot" : tone === "warn" ? "text-warn" : "text-text";
   return (
     <div className="card px-3 py-3">
-      <p className={`truncate text-xl font-bold tracking-tight tabular-nums ${color}`}>{value}</p>
+      <p className={`text-xl leading-tight font-bold tracking-tight tabular-nums ${color}`}>{value}</p>
       <p className="text-xs leading-tight font-medium text-muted">{label}</p>
     </div>
   );
@@ -396,7 +399,7 @@ function MissingSummary({ calls }: { calls: CallRow[] }) {
         {rows.slice(0, 8).map((row) => (
           <li key={row.partNo} className="flex items-center justify-between gap-3 text-sm">
             <span className="flex min-w-0 items-center gap-2">
-              <span className={`size-2 shrink-0 rounded-full ${row.urgent ? "bg-hot" : "bg-line"}`} />
+              <span className={`size-2 shrink-0 rounded-full ${row.urgent ? "bg-hot-fill" : "bg-line"}`} />
               <span className="truncate font-mono font-semibold">{row.partNo}</span>
             </span>
             <span className="shrink-0 text-muted tabular-nums">
@@ -410,8 +413,9 @@ function MissingSummary({ calls }: { calls: CallRow[] }) {
 }
 
 const PRIO_STYLE: Record<Urgency, { bar: string; active: string }> = {
-  sofort: { bar: "bg-hot", active: "bg-hot text-white" },
-  heute: { bar: "bg-warn", active: "bg-warn text-white" },
+  sofort: { bar: "bg-hot-fill", active: "bg-hot-fill text-white" },
+  // Blau, nicht gelb: Gelb heißt auf der Tafel "wartet schon lange".
+  heute: { bar: "bg-brand-fill", active: "bg-brand-fill text-white" },
   normal: { bar: "bg-line", active: "bg-surface text-text shadow-sm" },
 };
 
@@ -434,6 +438,7 @@ function CallCard({
   const [draft, setDraft] = useState("");
   const isDone = call.status === "done";
   const urgent = !isDone && call.urgency === "sofort";
+  const bad = !isDone && call.reply !== "" && replyTone(call.reply) === "bad";
   // Gestoppt wird erst bei "Erhalten".
   const end = isDone ? (call.receivedAt ?? call.updatedAt) : now;
   const tone = isDone ? "fresh" : waitTone(call.createdAt, now, call.urgency);
@@ -442,13 +447,15 @@ function CallCard({
 
   return (
     <article
-      className={`card relative grid gap-3 overflow-hidden p-4 pl-5 ${isDone ? "opacity-70" : ""} ${urgent ? "!border-hot bg-hot-soft" : ""}`}
+      className={`card relative grid gap-3 overflow-hidden p-4 pl-5 ${isDone ? "bg-surface-2" : ""} ${
+        tone === "late" ? "!border-hot bg-hot-soft" : tone === "slow" ? "!border-warn bg-warn-soft" : urgent ? "!border-hot" : ""
+      }`}
     >
-      <span className={`absolute inset-y-0 left-0 w-1.5 ${isDone ? "bg-ok" : PRIO_STYLE[call.urgency].bar}`} />
+      <span className={`absolute inset-y-0 left-0 w-1.5 ${isDone ? "bg-ok-fill" : PRIO_STYLE[call.urgency].bar}`} />
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           {urgent ? (
-            <p className="mb-1 inline-flex rounded-full bg-hot px-2.5 py-0.5 text-xs font-bold tracking-wide text-white uppercase">
+            <p className="mb-1 inline-flex rounded-full bg-hot-fill px-2.5 py-0.5 text-xs font-bold tracking-wide text-white uppercase">
               Dringend
             </p>
           ) : null}
@@ -458,7 +465,9 @@ function CallCard({
           <p className={`text-xl font-bold tabular-nums ${isDone ? "text-ok" : waitColor}`}>
             {waitLabel(call.createdAt, end)}
           </p>
-          <p className="text-xs text-muted">{isDone ? "bis erhalten" : "wartet"}</p>
+          <p className="text-xs text-muted">
+            {isDone ? (call.receivedBy === "lager" ? "bis geschlossen" : "bis erhalten") : "wartet"}
+          </p>
         </div>
       </div>
 
@@ -472,8 +481,14 @@ function CallCard({
 
       {call.note ? <p className="rounded-xl bg-surface-2 px-3 py-2 text-sm">{call.note}</p> : null}
 
-      {call.reply ? (
-        <p className="flex items-center gap-2 text-sm text-brand">
+      {bad ? (
+        <p className="rounded-xl bg-hot-fill px-3 py-2 text-sm font-semibold text-white">
+          Deine Antwort: {call.reply} · Anforderer sieht es rot
+        </p>
+      ) : call.reply ? (
+        <p
+          className={`flex items-center gap-2 text-sm ${replyTone(call.reply) === "warn" ? "text-warn" : "text-brand"}`}
+        >
           <MessageSquare className="size-4 shrink-0" aria-hidden="true" />
           <span className="font-semibold">Deine Antwort: {call.reply}</span>
         </p>
@@ -499,7 +514,7 @@ function CallCard({
               type="button"
               disabled={busy}
               aria-pressed={call.urgency === item}
-              className={`press h-10 rounded-lg text-sm font-semibold ${
+              className={`press h-12 rounded-lg text-sm font-semibold ${
                 call.urgency === item ? PRIO_STYLE[item].active : "text-muted"
               }`}
               onClick={() => onChange({ urgency: item })}
@@ -551,7 +566,7 @@ function CallCard({
 
       <div className="grid grid-cols-2 gap-2">
         {call.status === "open" ? (
-          <Button className="h-12" disabled={busy} onClick={() => onChange({ status: "underway" })}>
+          <Button className="h-12" disabled={busy} onClick={() => onChange(bad ? { status: "underway", reply: "" } : { status: "underway" })}>
             <Truck className="size-5" aria-hidden="true" />
             Gesendet
           </Button>
@@ -570,12 +585,12 @@ function CallCard({
         {!isDone ? (
           <Button
             variant={call.status === "underway" ? "primary" : "ghost"}
-            className={`col-span-2 ${call.status === "underway" ? "!bg-ok !text-white" : ""}`}
+            className={`col-span-2 ${call.status === "underway" ? "!bg-ok-fill !text-white" : ""}`}
             disabled={busy}
             onClick={() => onChange({ status: "done" })}
           >
             <Check className="size-5" aria-hidden="true" />
-            {call.status === "underway" ? "Erhalten (selbst bestätigen)" : "Schon erledigt"}
+            {call.status === "underway" ? "Erhalten (selbst bestätigen)" : "Schließen ohne Senden"}
           </Button>
         ) : null}
       </div>

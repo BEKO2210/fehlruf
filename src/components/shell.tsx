@@ -55,7 +55,7 @@ export function Shell({ children }: { children: ReactNode }) {
             Fehlruf
           </Link>
           {!lager ? (
-            <Link to="/tafel" className="ml-auto px-2 py-2 text-sm font-medium text-subtle">
+            <Link to="/tafel" className="ml-auto grid h-12 place-items-center px-3 text-sm font-medium text-muted">
               Lager
             </Link>
           ) : null}
@@ -80,7 +80,7 @@ export function Shell({ children }: { children: ReactNode }) {
                   {item.label}
                   {badge ? (
                     <span
-                      className="absolute top-1 right-[calc(50%-26px)] grid h-5 min-w-5 place-items-center rounded-full bg-hot px-1 text-[11px] font-bold text-white tabular-nums"
+                      className="absolute top-1 right-[calc(50%-26px)] grid h-5 min-w-5 place-items-center rounded-full bg-hot-fill px-1 text-[11px] font-bold text-white tabular-nums"
                       aria-label={`${badge} offen`}
                     >
                       {badge}

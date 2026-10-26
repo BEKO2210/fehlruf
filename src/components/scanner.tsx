@@ -143,14 +143,14 @@ export function Scanner({ onCode }: { onCode: (raw: string) => void }) {
           <span className="absolute bottom-0 left-0 size-7 rounded-bl-xl border-b-4 border-l-4 border-white/90" />
           <span className="absolute right-0 bottom-0 size-7 rounded-br-xl border-r-4 border-b-4 border-white/90" />
           {armed ? (
-            <span className="scanline absolute inset-x-3 top-1/2 h-0.5 rounded-full bg-brand shadow-[0_0_12px_2px_var(--brand)]" />
+            <span className="scanline absolute inset-x-3 top-1/2 h-0.5 rounded-full bg-brand-fill shadow-[0_0_12px_2px_var(--brand)]" />
           ) : null}
         </div>
         {!armed ? (
           <div className="absolute inset-0 flex flex-col items-center justify-end gap-3 bg-gradient-to-t from-black/70 via-black/20 to-transparent p-5">
             <button
               type="button"
-              className="press inline-flex h-14 items-center gap-2 rounded-2xl bg-brand px-6 text-base font-semibold text-brand-ink"
+              className="press inline-flex h-14 items-center gap-2 rounded-2xl bg-brand-fill px-6 text-base font-semibold text-brand-ink"
               onClick={() => {
                 setError(null);
                 setArmed(true);

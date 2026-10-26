@@ -1,7 +1,7 @@
 import type { CallStatus, Urgency } from "@/lib/api";
 
 const URGENCY_LABEL: Record<Urgency, string> = {
-  sofort: "Sofort",
+  sofort: "Dringend",
   heute: "Heute",
   normal: "Normal",
 };
@@ -60,6 +60,14 @@ export function parseScan(raw: string): ScanResult | null {
     // not a URL, so it is a part number
   }
   return { kind: "part", partNo: text.replace(/\s+/g, " ").slice(0, 64) };
+}
+
+/** Wie ernst ist die Antwort vom Lager? "Nicht auf Lager" muss beim Anforderer rot sein. */
+export function replyTone(reply: string): "bad" | "warn" | "info" {
+  const r = reply.toLocaleLowerCase("de");
+  if (r.includes("nicht auf lager") || r.includes("nicht da") || r.includes("nicht lieferbar")) return "bad";
+  if (r.includes("anrufen") || r.includes("dauert")) return "warn";
+  return "info";
 }
 
 /** Minutes a call has been waiting, and how loud the board should be about it. */

@@ -1,7 +1,7 @@
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, TextareaHTMLAttributes } from "react";
 
 const buttonStyles = {
-  primary: "bg-brand text-brand-ink h-14 text-base font-semibold",
+  primary: "bg-brand-fill text-brand-ink h-14 text-base font-semibold",
   muted: "bg-surface-2 text-text h-12 text-base font-medium",
   ghost: "border border-line bg-transparent text-text h-12 text-base font-medium",
 } as const;
@@ -19,7 +19,7 @@ export function Button({
   return (
     <button
       type={type}
-      className={`press inline-flex items-center justify-center gap-2 rounded-2xl px-5 disabled:pointer-events-none disabled:opacity-40 ${buttonStyles[variant]} ${full ? "w-full" : ""} ${className}`}
+      className={`press inline-flex items-center justify-center gap-2 rounded-2xl px-5 disabled:pointer-events-none disabled:!bg-surface-2 disabled:!text-muted ${buttonStyles[variant]} ${full ? "w-full" : ""} ${className}`}
       {...props}
     />
   );
@@ -68,8 +68,8 @@ export function Chip({
     <button
       type="button"
       aria-pressed={active}
-      className={`press shrink-0 rounded-full px-4 font-medium ${size === "lg" ? "h-12 text-base" : "h-10 text-sm"} ${
-        active ? "bg-brand text-brand-ink" : "border border-line bg-surface text-text"
+      className={`press shrink-0 rounded-full px-4 font-medium ${size === "lg" ? "h-14 text-base" : "h-12 text-sm"} ${
+        active ? "bg-brand-fill text-brand-ink" : "border border-line bg-surface text-text"
       }`}
       onClick={onClick}
     >

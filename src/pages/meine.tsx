@@ -3,7 +3,7 @@ import { Check, MessageSquare, ScanLine } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button, ErrorText, PageTitle } from "@/components/ui";
 import { api, type CallRow } from "@/lib/api";
-import { relativeWhen, waitLabel, waitTone } from "@/lib/format";
+import { relativeWhen, replyTone, waitLabel, waitTone } from "@/lib/format";
 
 /** Rufe dieses Handys. Holt alle 10 Sekunden neu, solange die Seite offen ist. */
 function useMine() {
@@ -75,12 +75,17 @@ export function MeinePage() {
     }
   }
 
-  const active = (calls ?? []).filter((call) => call.status !== "done");
+  // Oben, was etwas vom Anforderer will: gesendet (Erhalten tippen), dann "Nicht auf Lager", dann der Rest, älteste zuerst.
+  const weight = (call: CallRow) =>
+    call.status === "underway" ? 0 : call.reply && replyTone(call.reply) === "bad" ? 1 : 2;
+  const active = (calls ?? [])
+    .filter((call) => call.status !== "done")
+    .sort((a, b) => weight(a) - weight(b) || a.createdAt - b.createdAt);
   const done = (calls ?? []).filter((call) => call.status === "done");
 
   return (
     <div className="mx-auto grid w-full max-w-lg gap-5">
-      <PageTitle title="Meine Rufe" sub="Was du bestellt hast. Kommt es an: „Erhalten“ tippen." />
+      <PageTitle title="Meine Rufe" sub="Was du gemeldet hast. Kommt das Teil an: „Erhalten“ tippen." />
 
       {offline ? <ErrorText>Keine Verbindung zum Server. Versuche es weiter…</ErrorText> : null}
       {error ? <ErrorText>{error}</ErrorText> : null}
@@ -96,7 +101,7 @@ export function MeinePage() {
           <p className="text-sm text-muted">Du wartest gerade auf kein Teil.</p>
           <Link
             to="/"
-            className="press mt-2 inline-flex h-14 items-center justify-center gap-2 rounded-2xl bg-brand px-6 text-base font-semibold text-brand-ink"
+            className="press mt-2 inline-flex h-14 items-center justify-center gap-2 rounded-2xl bg-brand-fill px-6 text-base font-semibold text-brand-ink"
           >
             <ScanLine className="size-5" aria-hidden="true" />
             Teil melden
@@ -121,7 +126,7 @@ export function MeinePage() {
                 <Check className="size-5 shrink-0 text-ok" aria-hidden="true" />
                 <span className="min-w-0 flex-1 truncate font-mono font-semibold">{call.partNo}</span>
                 <span className="shrink-0 text-sm text-muted tabular-nums">
-                  {call.qty} Stk · {call.receivedAt ? waitLabel(call.createdAt, call.receivedAt) : "–"}
+                  {call.qty} Stk · {call.receivedAt ? `nach ${waitLabel(call.createdAt, call.receivedAt)} da` : "da"}
                 </span>
               </li>
             ))}
@@ -144,17 +149,27 @@ function MyCard({
   onReceived: () => void;
 }) {
   const sent = call.status === "underway";
+  const [armed, setArmed] = useState(false);
+  useEffect(() => {
+    if (!armed) return;
+    const timer = window.setTimeout(() => setArmed(false), 5000);
+    return () => window.clearTimeout(timer);
+  }, [armed]);
   const tone = waitTone(call.createdAt, now, call.urgency);
   const waitColor = tone === "late" ? "text-hot" : tone === "slow" ? "text-warn" : "text-text";
+  const rt = call.reply ? replyTone(call.reply) : "info";
+  const missing = !sent && rt === "bad";
   // Ein Satz statt Schritte: Was ist gerade los?
-  const status = sent
+  const status = missing
+    ? { text: "Nicht auf Lager", sub: "Das Lager hat das Teil gerade nicht.", color: "bg-hot-fill text-white" }
+    : sent
     ? { text: "Kommt zu dir", sub: "Das Lager hat es losgeschickt.", color: "bg-ok-soft text-ok" }
     : call.seenAt !== null
       ? { text: "Lager hat es gesehen", sub: "Wird bearbeitet.", color: "bg-brand-soft text-brand" }
       : { text: "Gemeldet", sub: "Lager hat es noch nicht geöffnet.", color: "bg-surface-2 text-text" };
 
   return (
-    <article className={`card grid gap-4 p-4 ${sent ? "ring-2 ring-ok" : ""}`}>
+    <article className={`card grid gap-4 p-4 ${missing ? "ring-2 ring-hot" : sent ? "ring-2 ring-ok" : ""}`}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="font-mono text-xl font-semibold tracking-tight break-all">{call.partNo}</p>
@@ -178,9 +193,14 @@ function MyCard({
         <p className="text-sm opacity-80">{status.sub}</p>
       </div>
 
-      {call.reply ? (
-        <div className="flex gap-3 rounded-2xl bg-brand-soft p-3">
-          <MessageSquare className="mt-0.5 size-5 shrink-0 text-brand" aria-hidden="true" />
+      {call.reply && !missing && !(sent && rt === "info") ? (
+        <div
+          className={`flex gap-3 rounded-2xl p-3 ${rt === "bad" ? "bg-hot-soft text-hot" : rt === "warn" ? "bg-warn-soft text-warn" : "bg-brand-soft"}`}
+        >
+          <MessageSquare
+            className={`mt-0.5 size-5 shrink-0 ${rt === "info" ? "text-brand" : ""}`}
+            aria-hidden="true"
+          />
           <div>
             <p className="text-base font-semibold">Lager: {call.reply}</p>
             {call.replyAt ? <p className="text-xs text-muted">{relativeWhen(call.replyAt)}</p> : null}
@@ -189,14 +209,20 @@ function MyCard({
       ) : null}
 
       {sent ? (
-        <Button full disabled={busy} className="h-16 !bg-ok text-lg !text-white" onClick={onReceived}>
+        <Button full disabled={busy} className="h-16 !bg-ok-fill text-lg !text-white" onClick={onReceived}>
           <Check className="size-6" strokeWidth={3} aria-hidden="true" />
           {busy ? "Wird bestätigt…" : "Erhalten"}
         </Button>
-      ) : (
-        <Button variant="ghost" full disabled={busy} onClick={onReceived}>
+      ) : missing ? null : armed ? (
+        <Button full disabled={busy} className="!bg-ok-fill !text-white" onClick={onReceived}>
           <Check className="size-5" aria-hidden="true" />
-          {busy ? "Wird bestätigt…" : "Schon da? Erhalten"}
+          {busy ? "Wird bestätigt…" : "Ja, ich habe das Teil"}
+        </Button>
+      ) : (
+        // Vor "Gesendet" mit Rückfrage: ein versehentlicher Tipp stoppt sonst die Zeit.
+        <Button variant="ghost" full disabled={busy} onClick={() => setArmed(true)}>
+          <Check className="size-5" aria-hidden="true" />
+          Schon da? Erhalten
         </Button>
       )}
     </article>

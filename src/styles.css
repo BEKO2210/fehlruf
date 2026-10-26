@@ -8,7 +8,7 @@
   --line: #e2e5ea;
   --text: #0f1217;
   --muted: #5b6472;
-  --subtle: #9aa2ae;
+  --subtle: #687180;
   --brand: #2f6bff;
   --brand-ink: #ffffff;
   --brand-soft: #e6eeff;
@@ -18,6 +18,11 @@
   --warn-soft: #fdf1dc;
   --ok: #15803d;
   --ok-soft: #dcf5e4;
+  /* Flächen mit weißer Schrift: hell = gleiche Farbe, dunkel = satter, damit Weiß lesbar bleibt (≥ 4,5:1). */
+  --brand-fill: #2f6bff;
+  --hot-fill: #dc2626;
+  --warn-fill: #b45309;
+  --ok-fill: #15803d;
   --shadow: 0 1px 2px rgb(15 18 23 / 0.04), 0 4px 16px rgb(15 18 23 / 0.05);
   color-scheme: light;
 }
@@ -30,7 +35,7 @@
     --line: #262b33;
     --text: #f2f4f7;
     --muted: #98a1ae;
-    --subtle: #687180;
+    --subtle: #8a93a1;
     --brand: #4c84ff;
     --brand-ink: #ffffff;
     --brand-soft: #18223a;
@@ -40,6 +45,10 @@
     --warn-soft: #36290f;
     --ok: #4ade80;
     --ok-soft: #12301f;
+    --brand-fill: #2f6bff;
+    --hot-fill: #dc2626;
+    --warn-fill: #b45309;
+    --ok-fill: #15803d;
     --shadow: none;
     color-scheme: dark;
   }
@@ -65,6 +74,10 @@
   --color-warn-soft: var(--warn-soft);
   --color-ok: var(--ok);
   --color-ok-soft: var(--ok-soft);
+  --color-brand-fill: var(--brand-fill);
+  --color-hot-fill: var(--hot-fill);
+  --color-warn-fill: var(--warn-fill);
+  --color-ok-fill: var(--ok-fill);
 }
 
 @layer base {
