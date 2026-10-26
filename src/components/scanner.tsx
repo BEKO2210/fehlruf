@@ -231,7 +231,7 @@ export function Scanner({ onCode }: { onCode: (raw: string) => boolean | string 
           {error}
         </p>
       ) : hint ? (
-        <p role="status" className="rounded-2xl bg-warn-soft px-4 py-3 text-sm font-medium text-warn">
+        <p role="status" className="rounded-2xl bg-brand-soft px-4 py-3 text-sm font-medium text-brand">
           {hint}
         </p>
       ) : null}

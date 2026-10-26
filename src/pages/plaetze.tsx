@@ -83,11 +83,11 @@ function Places({ onLocked }: { onLocked: () => void }) {
           </Field>
         </div>
         {error ? <ErrorText>{error}</ErrorText> : null}
-        <div className="grid grid-cols-2 gap-2">
-          <Button type="submit" className="h-12" disabled={pending}>
+        <div className="grid gap-3">
+          <Button type="submit" full disabled={pending}>
             {pending ? "Speichert…" : "Speichern"}
           </Button>
-          <Button variant="ghost" onClick={() => window.print()} disabled={stations.length === 0}>
+          <Button variant="muted" full onClick={() => window.print()} disabled={stations.length === 0}>
             <Printer className="size-5" aria-hidden="true" />
             Drucken
           </Button>

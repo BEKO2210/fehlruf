@@ -108,7 +108,7 @@ export function MeinePage() {
           </Link>
         </div>
       ) : (
-        <ul className="grid gap-4">
+        <ul className="grid gap-5">
           {active.map((call) => (
             <li key={call.id}>
               <MyCard call={call} now={now} busy={busy === call.id} onReceived={() => void confirm(call)} />
@@ -169,24 +169,37 @@ function MyCard({
       : { text: "Gemeldet", sub: "Lager hat es noch nicht geöffnet.", color: "bg-surface-2 text-text" };
 
   return (
-    <article className={`card grid gap-4 p-4 ${missing ? "ring-2 ring-hot" : sent ? "ring-2 ring-ok" : ""}`}>
+    <article className={`card grid gap-3 p-4 ${missing ? "ring-2 ring-hot" : sent ? "ring-2 ring-ok" : ""}`}>
+      {/* Kopf: Linie links, Wartezeit groß rechts */}
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="font-mono text-xl font-semibold tracking-tight break-all">{call.partNo}</p>
-          <p className="mt-0.5 text-sm text-muted">
-            {[`${call.qty} Stück`, call.line, call.orderNo ? `Auftrag ${call.orderNo}` : ""].filter(Boolean).join(" · ")}
-          </p>
           {call.urgency === "sofort" ? (
-            <p className="mt-2 inline-flex rounded-full bg-hot-soft px-3 py-1 text-sm font-semibold text-hot">
+            <p className="mb-1 inline-flex rounded-full bg-hot-fill px-2.5 py-0.5 text-xs font-bold tracking-wide text-white uppercase">
               Dringend
             </p>
           ) : null}
+          <h2 className="truncate text-lg font-bold tracking-tight">{call.line}</h2>
         </div>
         <div className="shrink-0 text-right">
-          <p className={`text-2xl font-bold tabular-nums ${waitColor}`}>{waitLabel(call.createdAt, now)}</p>
+          <p className={`text-2xl leading-tight font-bold tabular-nums ${waitColor}`}>{waitLabel(call.createdAt, now)}</p>
           <p className="text-xs text-muted">wartest du</p>
         </div>
       </div>
+
+      {/* Teil × Menge, Auftrag, Grund */}
+      <div>
+        <p className="font-mono text-xl font-semibold tracking-tight break-all">
+          {call.partNo} <span className="font-sans text-base font-bold text-muted">× {call.qty}</span>
+        </p>
+        {call.orderNo ? <p className="mt-0.5 text-base font-semibold">Auftrag {call.orderNo}</p> : null}
+      </div>
+
+      {call.note ? (
+        <p className="rounded-xl bg-surface-2 px-3 py-2 text-sm">
+          <span className="font-semibold text-muted">Was ist los: </span>
+          {call.note}
+        </p>
+      ) : null}
 
       <div className={`rounded-2xl px-4 py-3 ${status.color}`}>
         <p className="text-lg font-bold">{status.text}</p>
@@ -209,8 +222,8 @@ function MyCard({
       ) : null}
 
       {sent ? (
-        <Button full disabled={busy} className="h-16 !bg-ok-fill text-lg !text-white" onClick={onReceived}>
-          <Check className="size-6" strokeWidth={3} aria-hidden="true" />
+        <Button full disabled={busy} className="!bg-ok-fill !text-white" onClick={onReceived}>
+          <Check className="size-5" strokeWidth={3} aria-hidden="true" />
           {busy ? "Wird bestätigt…" : "Erhalten"}
         </Button>
       ) : missing ? null : armed ? (

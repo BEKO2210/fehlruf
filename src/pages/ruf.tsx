@@ -24,7 +24,6 @@ export function RufPage() {
   const [orderNo, setOrderNo] = useState("");
   const [stopped, setStopped] = useState(false);
   const [note, setNote] = useState("");
-  const [showNote, setShowNote] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [done, setDone] = useState<Done | null>(null);
@@ -87,7 +86,7 @@ export function RufPage() {
         </Link>
         <Link
           to="/"
-          className="press inline-flex h-14 items-center justify-center gap-2 rounded-2xl bg-surface-2 text-base font-semibold"
+          className="press -mt-2 inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-surface-2 text-base font-medium"
         >
           <ScanLine className="size-5" aria-hidden="true" />
           Nächstes Teil scannen
@@ -98,7 +97,7 @@ export function RufPage() {
 
   return (
     <form
-      className="mx-auto grid w-full max-w-lg gap-6"
+      className="mx-auto grid w-full max-w-lg gap-5"
       onSubmit={(event) => {
         event.preventDefault();
         if (!partNo.trim()) {
@@ -180,7 +179,7 @@ export function RufPage() {
       </section>
 
       <div className="grid gap-2">
-        <span className="text-sm font-semibold">Menge</span>
+        <span className="text-sm font-semibold">Wie viele?</span>
         <div className="card flex items-center justify-between p-2">
           <button
             type="button"
@@ -292,31 +291,20 @@ export function RufPage() {
         />
       </Field>
 
-      {showNote ? (
-        <Field label="Hinweis" hint="freiwillig">
-          <TextArea
-            value={note}
-            onChange={(event) => setNote(event.target.value)}
-            rows={2}
-            maxLength={140}
-            placeholder="z. B. Maschine 4"
-            autoFocus
-          />
-        </Field>
-      ) : (
-        <button
-          type="button"
-          className="min-h-12 justify-self-start text-base font-semibold text-brand"
-          onClick={() => setShowNote(true)}
-        >
-          + Hinweis dazuschreiben
-        </button>
-      )}
+      <Field label="Was ist los?" hint="freiwillig">
+        <TextArea
+          value={note}
+          onChange={(event) => setNote(event.target.value)}
+          rows={2}
+          maxLength={140}
+          placeholder="z. B. Maschine 4 steht, Lager hat Fehlmenge geliefert"
+        />
+      </Field>
 
       {/* Fehler direkt über dem Knopf, sonst verschwindet er hinter der Leiste. */}
       <div className="sticky bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-10 -mx-4 grid gap-2 bg-bg/90 px-4 py-2 backdrop-blur-md">
         {error ? <ErrorText>{error}</ErrorText> : null}
-        <Button type="submit" full disabled={pending} className={`h-16 text-lg ${stopped ? "!bg-hot-fill !text-white" : ""}`}>
+        <Button type="submit" full disabled={pending} className={`${stopped ? "!bg-hot-fill !text-white" : ""}`}>
           {pending ? "Wird gesendet…" : stopped ? "Dringend melden" : "Teil melden"}
         </Button>
       </div>

@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { BarChart3, Bell, BellOff, ChevronDown, Lock, MessageSquare, QrCode, Truck, Check, RotateCcw } from "lucide-react";
+import { BarChart3, Bell, BellOff, Check, ChevronDown, Flag, Lock, MessageSquare, QrCode, RotateCcw, Truck } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button, Chip, ErrorText, Field, TextInput } from "@/components/ui";
 import { api, ApiError, type CallPatch, type CallRow, type TafelState, type Urgency } from "@/lib/api";
@@ -347,7 +347,7 @@ function Board({ onLocked }: { onLocked: () => void }) {
           </p>
         </div>
       ) : (
-        <ul className="grid gap-3 md:grid-cols-2">
+        <ul className="grid gap-5 md:grid-cols-2">
           {visible.map((call) => (
             <li key={call.id}>
               <CallCard call={call} now={now} busy={busy !== null} onChange={(patch) => void update(call, patch)} />
@@ -434,7 +434,8 @@ function CallCard({
   busy: boolean;
   onChange: (patch: CallPatch) => void;
 }) {
-  const [replyOpen, setReplyOpen] = useState(false);
+  // Nur ein Aufklapper offen: Antwort oder Prio.
+  const [panel, setPanel] = useState<"reply" | "prio" | null>(null);
   const [draft, setDraft] = useState("");
   const isDone = call.status === "done";
   const urgent = !isDone && call.urgency === "sofort";
@@ -444,6 +445,7 @@ function CallCard({
   const tone = isDone ? "fresh" : waitTone(call.createdAt, now, call.urgency);
   const waitColor = tone === "late" ? "text-hot" : tone === "slow" ? "text-warn" : "text-text";
   const meta = [call.requester, call.stationCode ? `Platz ${call.stationCode}` : ""].filter(Boolean);
+  const toggle = (next: "reply" | "prio") => setPanel((cur) => (cur === next ? null : next));
 
   return (
     <article
@@ -452,6 +454,8 @@ function CallCard({
       }`}
     >
       <span className={`absolute inset-y-0 left-0 w-1.5 ${isDone ? "bg-ok-fill" : PRIO_STYLE[call.urgency].bar}`} />
+
+      {/* Kopf: Linie links, Wartezeit groß rechts */}
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           {urgent ? (
@@ -462,7 +466,7 @@ function CallCard({
           <h2 className="truncate text-lg font-bold tracking-tight">{call.line}</h2>
         </div>
         <div className="shrink-0 text-right">
-          <p className={`text-xl font-bold tabular-nums ${isDone ? "text-ok" : waitColor}`}>
+          <p className={`text-2xl leading-tight font-bold tabular-nums ${isDone ? "text-ok" : waitColor}`}>
             {waitLabel(call.createdAt, end)}
           </p>
           <p className="text-xs text-muted">
@@ -471,6 +475,7 @@ function CallCard({
         </div>
       </div>
 
+      {/* Teil × Menge, Auftrag, wer */}
       <div>
         <p className="font-mono text-xl font-semibold tracking-tight break-all">
           {call.partNo} <span className="font-sans text-base font-bold text-muted">× {call.qty}</span>
@@ -479,8 +484,14 @@ function CallCard({
         {meta.length ? <p className="mt-0.5 text-sm text-muted">{meta.join(" · ")}</p> : null}
       </div>
 
-      {call.note ? <p className="rounded-xl bg-surface-2 px-3 py-2 text-sm">{call.note}</p> : null}
+      {call.note ? (
+        <p className="rounded-xl bg-surface-2 px-3 py-2 text-sm">
+          <span className="font-semibold text-muted">Was ist los: </span>
+          {call.note}
+        </p>
+      ) : null}
 
+      {/* Antwort-Zeile */}
       {bad ? (
         <p className="rounded-xl bg-hot-fill px-3 py-2 text-sm font-semibold text-white">
           Deine Antwort: {call.reply} · Anforderer sieht es rot
@@ -495,7 +506,7 @@ function CallCard({
       ) : null}
 
       {call.status === "underway" ? (
-        <p className="rounded-xl bg-warn-soft px-3 py-2 text-sm font-semibold text-warn">
+        <p className="rounded-xl bg-ok-soft px-3 py-2 text-sm font-semibold text-ok">
           Gesendet {call.sentAt ? relativeWhen(call.sentAt, now) : ""} · wartet auf „Erhalten“ vom Anforderer
         </p>
       ) : null}
@@ -506,7 +517,58 @@ function CallCard({
         </p>
       ) : null}
 
+      {/* Hauptaktion: genau ein gefüllter Knopf */}
+      {call.status === "open" ? (
+        <Button full disabled={busy} onClick={() => onChange(bad ? { status: "underway", reply: "" } : { status: "underway" })}>
+          <Truck className="size-5" aria-hidden="true" />
+          Gesendet
+        </Button>
+      ) : call.status === "underway" ? (
+        <Button full className="!bg-ok-fill !text-white" disabled={busy} onClick={() => onChange({ status: "done" })}>
+          <Check className="size-5" aria-hidden="true" />
+          Erhalten (selbst bestätigen)
+        </Button>
+      ) : (
+        <Button variant="ghost" disabled={busy} onClick={() => onChange({ status: "open" })}>
+          <RotateCcw className="size-4 shrink-0" aria-hidden="true" />
+          Wieder offen
+        </Button>
+      )}
+
+      {/* Nebenaktionen: gleich groß, grau */}
       {!isDone ? (
+        <div className="grid grid-cols-2 gap-3">
+          {call.status === "underway" ? (
+            <Button variant="muted" className="px-3 whitespace-nowrap" disabled={busy} onClick={() => onChange({ status: "open" })}>
+              <RotateCcw className="size-4 shrink-0" aria-hidden="true" />
+              Wieder offen
+            </Button>
+          ) : (
+            <Button
+              variant="muted"
+              aria-expanded={panel === "prio"}
+              className={panel === "prio" ? "!bg-brand-soft !text-brand" : ""}
+              disabled={busy}
+              onClick={() => toggle("prio")}
+            >
+              <Flag className="size-5" aria-hidden="true" />
+              Prio
+            </Button>
+          )}
+          <Button
+            variant="muted"
+            aria-expanded={panel === "reply"}
+            className={panel === "reply" ? "!bg-brand-soft !text-brand" : ""}
+            disabled={busy}
+            onClick={() => toggle("reply")}
+          >
+            <MessageSquare className="size-5" aria-hidden="true" />
+            Antwort
+          </Button>
+        </div>
+      ) : null}
+
+      {!isDone && panel === "prio" ? (
         <div className="grid grid-cols-3 gap-1 rounded-xl bg-surface-2 p-1" role="group" aria-label="Prio">
           {urgencies.map((item) => (
             <button
@@ -517,7 +579,10 @@ function CallCard({
               className={`press h-12 rounded-lg text-sm font-semibold ${
                 call.urgency === item ? PRIO_STYLE[item].active : "text-muted"
               }`}
-              onClick={() => onChange({ urgency: item })}
+              onClick={() => {
+                onChange({ urgency: item });
+                setPanel(null);
+              }}
             >
               {urgencyLabel(item)}
             </button>
@@ -525,8 +590,8 @@ function CallCard({
         </div>
       ) : null}
 
-      {!isDone && replyOpen ? (
-        <div className="grid gap-2">
+      {!isDone && panel === "reply" ? (
+        <div className="grid gap-3">
           <div className="flex flex-wrap gap-2">
             {REPLIES.map((text) => (
               <Chip
@@ -534,7 +599,7 @@ function CallCard({
                 active={call.reply === text}
                 onClick={() => {
                   onChange({ reply: call.reply === text ? "" : text });
-                  setReplyOpen(false);
+                  setPanel(null);
                 }}
               >
                 {text}
@@ -542,12 +607,12 @@ function CallCard({
             ))}
           </div>
           <form
-            className="flex gap-2"
+            className="flex gap-3"
             onSubmit={(event) => {
               event.preventDefault();
               onChange({ reply: draft.trim() });
               setDraft("");
-              setReplyOpen(false);
+              setPanel(null);
             }}
           >
             <TextInput
@@ -555,45 +620,25 @@ function CallCard({
               onChange={(event) => setDraft(event.target.value)}
               placeholder="Eigene Antwort"
               maxLength={80}
-              className="h-11"
+              className="h-12"
             />
-            <Button type="submit" variant="muted" className="h-11" disabled={!draft.trim()}>
+            <Button type="submit" variant="muted" disabled={!draft.trim()}>
               OK
             </Button>
           </form>
         </div>
       ) : null}
 
-      <div className="grid grid-cols-2 gap-2">
-        {call.status === "open" ? (
-          <Button className="h-12" disabled={busy} onClick={() => onChange(bad ? { status: "underway", reply: "" } : { status: "underway" })}>
-            <Truck className="size-5" aria-hidden="true" />
-            Gesendet
-          </Button>
-        ) : (
-          <Button variant="ghost" disabled={busy} onClick={() => onChange({ status: "open" })}>
-            <RotateCcw className="size-4 shrink-0" aria-hidden="true" />
-            <span className="text-sm">Wieder offen</span>
-          </Button>
-        )}
-        {!isDone ? (
-          <Button variant="muted" disabled={busy} onClick={() => setReplyOpen((v) => !v)}>
-            <MessageSquare className="size-5" aria-hidden="true" />
-            Antwort
-          </Button>
-        ) : null}
-        {!isDone ? (
-          <Button
-            variant={call.status === "underway" ? "primary" : "ghost"}
-            className={`col-span-2 ${call.status === "underway" ? "!bg-ok-fill !text-white" : ""}`}
-            disabled={busy}
-            onClick={() => onChange({ status: "done" })}
-          >
-            <Check className="size-5" aria-hidden="true" />
-            {call.status === "underway" ? "Erhalten (selbst bestätigen)" : "Schließen ohne Senden"}
-          </Button>
-        ) : null}
-      </div>
+      {call.status === "open" ? (
+        <button
+          type="button"
+          disabled={busy}
+          className="min-h-12 justify-self-center text-sm font-medium text-muted underline-offset-4 hover:underline"
+          onClick={() => onChange({ status: "done" })}
+        >
+          Schließen ohne Senden
+        </button>
+      ) : null}
     </article>
   );
 }
@@ -608,7 +653,7 @@ function Settings({ onLocked }: { onLocked: () => void }) {
         Einstellungen
         <ChevronDown className="size-4 transition-transform group-open:rotate-180" aria-hidden="true" />
       </summary>
-      <div className="mt-4 grid gap-4">
+      <div className="mt-4 grid gap-5">
         <Link
           to="/plaetze"
           className="press flex h-12 items-center gap-3 rounded-2xl bg-surface-2 px-4 text-sm font-semibold"
