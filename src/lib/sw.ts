@@ -4,6 +4,10 @@ import { useSyncExternalStore } from "react";
 // Nur im Build, damit der Dev-Server nicht cacht.
 
 let waiting: ServiceWorker | null = null;
+// Erst nach Tipp auf die Leiste darf controllerchange neu laden. Bei der
+// Erstinstallation übernimmt clients.claim() die Seite auch, das darf den
+// Arbeiter nicht mitten im Tippen aus der Eingabe werfen.
+let wanted = false;
 const listeners = new Set<() => void>();
 
 function setWaiting(sw: ServiceWorker | null) {
@@ -27,7 +31,7 @@ export function registerSw() {
   if (!import.meta.env.PROD || !("serviceWorker" in navigator)) return;
   let reloading = false;
   navigator.serviceWorker.addEventListener("controllerchange", () => {
-    if (reloading) return;
+    if (!wanted || reloading) return;
     reloading = true;
     window.location.reload();
   });
@@ -47,7 +51,9 @@ export function registerSw() {
 
 /** Neue Version übernehmen: der wartende Worker aktiviert sich, controllerchange lädt neu. */
 export function applyUpdate() {
-  waiting?.postMessage({ type: "SKIP_WAITING" });
+  if (!waiting) return;
+  wanted = true;
+  waiting.postMessage({ type: "SKIP_WAITING" });
 }
 
 export function useUpdateReady() {
