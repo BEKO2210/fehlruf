@@ -26,6 +26,7 @@ import {
   replyTone,
   urgencyLabel,
   waitLabel,
+  waitShort,
   waitTone,
 } from "@/lib/format";
 
@@ -70,6 +71,7 @@ export function PinGate({ setup, onDone }: { setup: boolean; onDone: () => void 
   const [again, setAgain] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const pinRef = useRef<HTMLInputElement>(null);
   const digits = (v: string) => v.replace(/\D/g, "").slice(0, 12);
 
   return (
@@ -79,6 +81,8 @@ export function PinGate({ setup, onDone }: { setup: boolean; onDone: () => void 
         event.preventDefault();
         if (setup && pin !== again) {
           setError("Die beiden PINs sind nicht gleich.");
+          setAgain("");
+          pinRef.current?.focus();
           return;
         }
         setPending(true);
@@ -88,6 +92,8 @@ export function PinGate({ setup, onDone }: { setup: boolean; onDone: () => void 
           .catch((err: unknown) => {
             setError(err instanceof Error ? err.message : "Hat nicht geklappt.");
             setPin("");
+            setAgain("");
+            pinRef.current?.focus();
           })
           .finally(() => setPending(false));
       }}
@@ -105,6 +111,7 @@ export function PinGate({ setup, onDone }: { setup: boolean; onDone: () => void 
       </div>
       <Field label="PIN" hint={setup ? "6 bis 12 Ziffern" : undefined}>
         <TextInput
+          ref={pinRef}
           value={pin}
           onChange={(event) => setPin(digits(event.target.value))}
           type="password"
@@ -257,7 +264,7 @@ function Board({ onLocked }: { onLocked: () => void }) {
   }
 
   return (
-    <div className="grid gap-5">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-5">
       <div className="flex items-center justify-between gap-3">
         <h1 className="text-[28px] leading-tight font-bold tracking-tight">Tafel</h1>
         <div className="flex gap-2">
@@ -293,18 +300,18 @@ function Board({ onLocked }: { onLocked: () => void }) {
         <Stat label="Dringend" value={String(urgent)} tone={urgent > 0 ? "hot" : undefined} />
         <Stat
           label="Längste Wartezeit"
-          value={active.length ? waitLabel(oldest, now) : "–"}
+          value={active.length ? waitShort(oldest, now) : "–"}
           tone={active.length ? toneOf(worst) : undefined}
         />
       </div>
 
       {offline ? <ErrorText>Keine Verbindung zum Server. Versuche es weiter…</ErrorText> : null}
 
-      <div aria-live="assertive">
+      <div aria-live="assertive" className="min-w-0">
         {banner ? (
           <button
             type="button"
-            className={`rise flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left text-white ${banner.startsWith("DRINGEND") ? "bg-hot-fill" : "bg-brand-fill"}`}
+            className={`rise flex w-full min-w-0 max-w-full items-center overflow-hidden gap-3 rounded-2xl px-4 py-3 text-left text-white ${banner.startsWith("DRINGEND") ? "bg-hot-fill" : "bg-brand-fill"}`}
             onClick={() => setBanner(null)}
           >
             <span className="rounded-full bg-white/20 px-2 py-0.5 text-xs font-bold uppercase">Neu</span>
@@ -661,6 +668,7 @@ function CallCard({
 function Settings({ onLocked }: { onLocked: () => void }) {
   const [pin, setPin] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
+  const pinRef = useRef<HTMLInputElement>(null);
 
   return (
     <details className="card group mt-2 p-4">
@@ -695,11 +703,15 @@ function Settings({ onLocked }: { onLocked: () => void }) {
                 setPin("");
                 setMsg("PIN geändert. Andere Geräte müssen sie neu eingeben.");
               })
-              .catch((err: unknown) => setMsg(err instanceof Error ? err.message : "Nicht geändert."));
+              .catch((err: unknown) => {
+                setMsg(err instanceof Error ? err.message : "Nicht geändert.");
+                pinRef.current?.focus();
+              });
           }}
         >
           <Field label="Neue PIN">
             <TextInput
+              ref={pinRef}
               value={pin}
               onChange={(event) => setPin(event.target.value.replace(/\D/g, "").slice(0, 12))}
               type="password"

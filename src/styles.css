@@ -116,6 +116,11 @@
     border-color: var(--brand);
   }
 
+  /* Rahmenlose Felder (Teil, Menge): Ring bekommt Luft zum Text. */
+  input.bg-transparent:focus-visible {
+    outline-offset: 3px;
+  }
+
   h1,
   h2,
   h3 {

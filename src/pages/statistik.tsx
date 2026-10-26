@@ -104,9 +104,9 @@ function Board({ onLocked }: { onLocked: () => void }) {
             <ul className="mt-3 grid grid-cols-[minmax(0,1fr)] gap-3">
               {stats.lines.map((line) => (
                 <li key={line.line} className="grid min-w-0 gap-1">
-                  <div className="flex min-w-0 items-baseline justify-between gap-3 text-sm">
-                    <span className="min-w-0 truncate font-semibold">{line.line}</span>
-                    <span className="min-w-0 max-w-[55%] truncate text-muted tabular-nums">
+                  <div className="flex min-w-0 flex-wrap items-baseline justify-between gap-x-3 text-sm">
+                    <span className="min-w-0 max-w-full truncate font-semibold">{line.line}</span>
+                    <span className="text-muted tabular-nums">
                       {line.count} {line.count === 1 ? "Ruf" : "Rufe"}{line.urgent ? ` · ${line.urgent} dringend` : ""}
                       {line.toReceivedMedianMs !== null ? ` · meist ${duration(line.toReceivedMedianMs)}` : ""}
                     </span>

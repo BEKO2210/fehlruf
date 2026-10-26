@@ -171,8 +171,12 @@ export function RufPage() {
             placeholder="Nummer vom Teil"
             autoComplete="off"
             autoCapitalize="characters"
-            className="w-full rounded-lg bg-transparent font-mono text-xl font-semibold placeholder:font-sans placeholder:text-base placeholder:font-normal placeholder:text-subtle"
+            className="-mx-1 w-[calc(100%+0.5rem)] rounded-lg bg-transparent px-1 py-0.5 font-mono text-lg font-semibold placeholder:font-sans placeholder:text-base placeholder:font-normal placeholder:text-subtle"
           />
+          {partNo.length > 20 ? (
+            // Lange Nummern passen nicht in die Zeile: darunter komplett zeigen, damit klar ist, was gemeldet wird.
+            <span className="mt-1 block font-mono text-xs break-all text-muted">{partNo}</span>
+          ) : null}
         </label>
         {!scanning ? (
           <button

@@ -90,12 +90,15 @@ export function waitLabel(ms: number, now: number): string {
   return `${Math.floor(hr / 24)} Tg`;
 }
 
-/** Short form for small tiles: "0 Min", "47 Min", "3 Std", "2 Tg". */
+/** Kurzform für schmale Kacheln: "jetzt", "47 Min", "3 Std", "2:15 Std", "2 Tg". */
 export function waitShort(ms: number, now: number): string {
   const min = Math.floor(Math.max(0, now - ms) / 60000);
+  if (min < 1) return "jetzt";
   if (min < 60) return `${min} Min`;
   const hr = Math.floor(min / 60);
-  return hr < 24 ? `${hr} Std` : `${Math.floor(hr / 24)} Tg`;
+  const rest = min % 60;
+  if (hr < 24) return rest ? `${hr}:${String(rest).padStart(2, "0")} Std` : `${hr} Std`;
+  return `${Math.floor(hr / 24)} Tg`;
 }
 
 /** localStorage that never throws (private mode, blocked storage). */
