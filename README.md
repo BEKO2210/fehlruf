@@ -88,6 +88,48 @@ Den Volume-Namen zeigt `docker volume ls`. Das `*` ist wichtig: SQLite läuft im
 
 Daten: `calls.line` = Abteilung / Linie, `urgency` = Prio, `requester` = Name (freiwillig), `orderNo` = Auftrag. `underway` bedeutet „Gesendet“; erst `received` oder Abschluss durch Lager setzt „Erhalten“. `GET /api/calls` markiert offene Rufe als gesehen. Statistik verwendet Berliner Tagesgrenzen und wertet keine Personen aus.
 
+## Betrieb
+
+Beide Skripte laufen auf dem Heimserver im geklonten Repo (`~/fehlruf`), ohne sudo.
+
+### Backup
+
+```bash
+~/fehlruf/scripts/backup.sh
+# backup: /home/<user>/fehlruf-backup/fehlruf-20261026-0230.db (48K)
+```
+
+Zieht per `VACUUM INTO` eine konsistente Kopie aus dem laufenden Container, legt sie unter `~/fehlruf-backup/fehlruf-<YYYYMMDD-HHMM>.db` ab und löscht eigene Sicherungen, die älter als 30 Tage sind.
+
+Täglich um 2:30 Uhr per Cron (`crontab -e`):
+
+```
+30 2 * * * $HOME/fehlruf/scripts/backup.sh >> $HOME/fehlruf-backup/backup.log 2>&1
+```
+
+### Wiederherstellung
+
+```bash
+cd ~/fehlruf/api
+docker compose stop fehlruf-api
+VOL=$(docker volume ls -q | grep fehlruf-data)
+docker run --rm -v "$VOL:/data" -v ~/fehlruf-backup:/b alpine \
+  sh -c 'rm -f /data/fehlruf.db /data/fehlruf.db-wal /data/fehlruf.db-shm && cp /b/fehlruf-20261026-0230.db /data/fehlruf.db && chown 1000:1000 /data/fehlruf.db'
+docker compose start fehlruf-api
+curl http://127.0.0.1:8787/api/health
+```
+
+Vorher eine frische Sicherung ziehen, falls der Stand doch noch gebraucht wird.
+
+### Deploy
+
+```bash
+~/fehlruf/scripts/deploy-api.sh
+# deploy: ok (e9e4af3)
+```
+
+Macht `git pull --ff-only` auf `main`, `docker compose up -d --build` in `api/` und wartet auf `/api/health`. Schlägt der Health-Check fehl, endet das Skript mit Exit 1 und zeigt die letzten 20 Log-Zeilen. Die Seite selbst deployt GitHub Actions beim Push.
+
 ## Lokal
 
 ```bash
