@@ -1,13 +1,12 @@
 import { useNavigate } from "@tanstack/react-router";
 import { useCallback, useState } from "react";
 import { Scanner } from "@/components/scanner";
-import { Button, ErrorText, PageTitle } from "@/components/ui";
+import { Button, PageTitle } from "@/components/ui";
 import { parseScan } from "@/lib/format";
 
 export function MeldenPage() {
   const navigate = useNavigate();
   const [typed, setTyped] = useState("");
-  const [error, setError] = useState<string | null>(null);
 
   // Liefert true, wenn der Code brauchbar war; der Scanner scannt sonst weiter.
   const open = useCallback(
@@ -39,16 +38,13 @@ export function MeldenPage() {
         className="grid gap-3"
         onSubmit={(event) => {
           event.preventDefault();
-          if (!open(typed)) setError("Nummer fehlt. Bitte eintippen.");
+          open(typed);
         }}
       >
         <div className="flex gap-2">
           <input
             value={typed}
-            onChange={(event) => {
-              setTyped(event.target.value);
-              setError(null);
-            }}
+            onChange={(event) => setTyped(event.target.value)}
             placeholder="z. B. 6204-2RSR"
             aria-label="Teilenummer"
             autoCapitalize="characters"
@@ -61,7 +57,6 @@ export function MeldenPage() {
             Weiter
           </Button>
         </div>
-        {error ? <ErrorText>{error}</ErrorText> : null}
       </form>
     </div>
   );

@@ -40,7 +40,9 @@ function cameraMessage(err: unknown): string {
       return "Kamera nicht erlaubt. In den Handy-Einstellungen bei Fehlruf die Kamera erlauben. Oder Nummer unten eintippen.";
     }
     // Browser: Chrome auf Android zeigt kein Schloss mehr, Safari auf dem iPhone hatte nie eins.
-    const iphone = /iPhone|iPad|iPod/.test(navigator.userAgent);
+    // iPad-Safari nennt sich "Macintosh", hat aber Touch.
+    const ua = navigator.userAgent;
+    const iphone = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
     return iphone
       ? "Kamera nicht erlaubt. Auf dem iPhone: Einstellungen → Safari → Kamera → Erlauben. Oder Nummer unten eintippen."
       : "Kamera nicht erlaubt. Oben links neben der Adresse auf das Symbol tippen und Kamera erlauben. Oder Nummer unten eintippen.";
@@ -54,12 +56,19 @@ function cameraMessage(err: unknown): string {
   return "Kamera geht nicht. Nummer unten eintippen.";
 }
 
+// Nach so vielen Sekunden ohne Treffer bekommt der Arbeiter einen Tipp.
+const IDLE_MS = 8000;
+const IDLE_HINT = "Nichts erkannt. Näher ran, oder Nummer unten eintippen.";
+
 // onCode gibt false zurück, wenn der Code nichts taugt; dann wird weitergescannt.
-export function Scanner({ onCode }: { onCode: (raw: string) => boolean | void }) {
+// Ein String statt false wird dem Arbeiter als Hinweis gezeigt (z. B. falscher Zettel).
+export function Scanner({ onCode }: { onCode: (raw: string) => boolean | string | void }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const onCodeRef = useRef(onCode);
   const [armed, setArmed] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Kein Fehler des Arbeiters, darum getrennt vom roten Kamera-Fehler.
+  const [hint, setHint] = useState<string | null>(null);
 
   // Once the camera worked on this phone, open it straight away next time.
   useEffect(() => {
@@ -77,22 +86,39 @@ export function Scanner({ onCode }: { onCode: (raw: string) => boolean | void })
     let stopped = false;
     let taken = false;
     let timer = 0;
-    let errorTimer = 0;
+    let hintTimer = 0;
+    let idleTimer = 0;
     let stream: MediaStream | null = null;
     let controls: { stop: () => void } | null = null;
 
+    // Hinweis zu einem falschen Code nur kurz zeigen, damit er nicht neben einem Formular-Fehler stehen bleibt.
+    const showHint = (text: string, sticky = false) => {
+      setHint(text);
+      window.clearTimeout(hintTimer);
+      if (!sticky) hintTimer = window.setTimeout(() => setHint(null), 4000);
+    };
+
+    // Läuft die Kamera eine Weile ohne Treffer (verschmierter Code), sagen wir, was hilft.
+    // Der Tipp bleibt stehen, bis etwas erkannt wird.
+    const watchIdle = () => {
+      window.clearTimeout(idleTimer);
+      idleTimer = window.setTimeout(() => {
+        if (!stopped && !taken) showHint(IDLE_HINT, true);
+      }, IDLE_MS);
+    };
+
     const deliver = (raw: string): boolean => {
       if (stopped || taken) return false;
-      if (onCodeRef.current(raw) === false) {
-        // Hinweis nur kurz zeigen, damit er nicht neben einem Formular-Fehler stehen bleibt.
-        setError("Nichts erkannt. Näher ran, oder Nummer unten eintippen.");
-        window.clearTimeout(errorTimer);
-        errorTimer = window.setTimeout(() => setError(null), 4000);
+      const verdict = onCodeRef.current(raw);
+      if (verdict === false || typeof verdict === "string") {
+        showHint(typeof verdict === "string" ? verdict : IDLE_HINT);
+        watchIdle();
         return false;
       }
       taken = true;
-      window.clearTimeout(errorTimer);
-      setError(null);
+      window.clearTimeout(hintTimer);
+      window.clearTimeout(idleTimer);
+      setHint(null);
       if (typeof navigator.vibrate === "function") navigator.vibrate(60);
       return true;
     };
@@ -118,6 +144,7 @@ export function Scanner({ onCode }: { onCode: (raw: string) => boolean | void })
           video!.srcObject = stream;
           await video!.play();
           remember.set(CAMERA_OK, "1");
+          watchIdle();
           const supported = (await Ctor.getSupportedFormats?.()) ?? FORMATS;
           const formats = FORMATS.filter((f) => supported.includes(f));
           const detector = new Ctor({ formats: formats.length ? formats : ["qr_code"] });
@@ -146,6 +173,7 @@ export function Scanner({ onCode }: { onCode: (raw: string) => boolean | void })
           },
         );
         remember.set(CAMERA_OK, "1");
+        watchIdle();
       } catch (err) {
         remember.set(CAMERA_OK, "0");
         if (!stopped) {
@@ -159,7 +187,9 @@ export function Scanner({ onCode }: { onCode: (raw: string) => boolean | void })
     return () => {
       stopped = true;
       window.clearTimeout(timer);
-      window.clearTimeout(errorTimer);
+      window.clearTimeout(hintTimer);
+      window.clearTimeout(idleTimer);
+      setHint(null);
       controls?.stop();
       stopStream();
       if (video) video.srcObject = null;
@@ -199,6 +229,10 @@ export function Scanner({ onCode }: { onCode: (raw: string) => boolean | void })
       {error ? (
         <p role="alert" className="rounded-2xl bg-hot-soft px-4 py-3 text-sm font-medium text-hot">
           {error}
+        </p>
+      ) : hint ? (
+        <p role="status" className="rounded-2xl bg-warn-soft px-4 py-3 text-sm font-medium text-warn">
+          {hint}
         </p>
       ) : null}
     </div>

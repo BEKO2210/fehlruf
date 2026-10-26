@@ -140,7 +140,8 @@ export function RufPage() {
         <Scanner
           onCode={(raw) => {
             const hit = parseScan(raw);
-            if (hit?.kind !== "part") return false;
+            if (!hit) return false;
+            if (hit.kind === "station") return "Das ist ein Platz-Zettel. Bitte den Barcode am Teil scannen.";
             setPartNo(hit.partNo);
             setScanning(false);
             return true;
