@@ -53,7 +53,8 @@ Gleich nach dem ersten Deploy `…/fehlruf/#/tafel` öffnen und die PIN festlege
 - PIN mit PBKDF2 gehasht. Das Token ist HMAC-signiert, gilt 30 Tage und liegt im `localStorage` des Geräts. PIN ändern meldet alle anderen Geräte ab.
 - Gesperrt wird nach 8 PIN-Fehlversuchen pro Adresse oder 50 insgesamt in 15 Minuten.
 - CORS: Nur Origins aus `ALLOWED_ORIGINS` bekommen eine Antwort, alle anderen ein 403.
-- Öffentlich sind nur `GET /api/form` (Namen der Abteilungen / Linien), `POST /api/calls` (12/Min pro Adresse, max. 1000 offene), `GET /api/state`, `POST /api/setup` und `POST /api/login`.
+- Öffentlich sind `GET /api/health`, `GET /api/form` (Namen der Abteilungen / Linien), `POST /api/calls` (30/Min pro Adresse, max. 1000 offene), `POST /api/mine`, `POST /api/calls/:id/received`, `GET /api/state`, `POST /api/setup` und `POST /api/login`.
+- Geräteschlüssel werden nur als HMAC mit eigenem, dauerhaftem Geheimnis gespeichert. PIN-Wechsel lässt eigene Rufe erreichbar.
 - Container: `read_only`, keine Capabilities, kein Root. Die API hat keine npm-Abhängigkeiten.
 - Aufbewahrung: Namen werden nach 30 Tagen geleert, Erledigtes nach 90 Tagen gelöscht.
 
@@ -62,10 +63,10 @@ Gleich nach dem ersten Deploy `…/fehlruf/#/tafel` öffnen und die PIN festlege
 **Backup:**
 
 ```bash
-docker run --rm -v api_fehlruf-data:/data -v "$PWD":/b alpine cp /data/fehlruf.db /b/
+docker run --rm -v api_fehlruf-data:/data -v "$PWD":/b alpine sh -c "cp /data/fehlruf.db* /b/"
 ```
 
-Den Volume-Namen zeigt `docker volume ls`.
+Den Volume-Namen zeigt `docker volume ls`. Das `*` ist wichtig: SQLite läuft im WAL-Modus, frische Daten stehen in `fehlruf.db-wal`.
 
 ## API
 
@@ -73,16 +74,19 @@ Den Volume-Namen zeigt `docker volume ls`.
 |---|---|---|
 | GET | `/api/health` | – |
 | GET | `/api/form?code=` | – |
-| POST | `/api/calls` | – |
+| POST | `/api/calls` (`orderNo`, `device` freiwillig) | – |
+| POST | `/api/mine` (`device`) | – |
+| POST | `/api/calls/:id/received` (`device`) | – |
 | GET | `/api/state` | – |
 | POST | `/api/setup`, `/api/login` | – |
 | POST | `/api/pin` | ja |
 | GET | `/api/calls` | ja |
-| PATCH | `/api/calls/:id` (`status`, `urgency`) | ja |
+| PATCH | `/api/calls/:id` (`status`, `urgency`, `reply`) | ja |
+| GET | `/api/stats?days=1\|7\|30` | ja |
 | GET/POST | `/api/stations` | ja |
 | DELETE | `/api/stations/:code` | ja |
 
-Daten: `calls.line` = Abteilung / Linie, `urgency` = Prio, `requester` = Name (freiwillig).
+Daten: `calls.line` = Abteilung / Linie, `urgency` = Prio, `requester` = Name (freiwillig), `orderNo` = Auftrag. `underway` bedeutet „Gesendet“; erst `received` oder Abschluss durch Lager setzt „Erhalten“. `GET /api/calls` markiert offene Rufe als gesehen. Statistik verwendet Berliner Tagesgrenzen und wertet keine Personen aus.
 
 ## Lokal
 

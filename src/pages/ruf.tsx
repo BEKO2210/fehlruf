@@ -1,5 +1,5 @@
 import { Link, useParams, useSearch } from "@tanstack/react-router";
-import { Check, Minus, Package, Plus, ScanLine, TriangleAlert } from "lucide-react";
+import { Check, ClipboardList, Minus, Package, Plus, ScanLine, TriangleAlert } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Scanner } from "@/components/scanner";
 import { Button, Chip, ErrorText, Field, PageTitle, TextArea, TextInput } from "@/components/ui";
@@ -9,7 +9,7 @@ import { parseScan, remember, uniqueLines } from "@/lib/format";
 const KEY_DEPT = "fehlruf-abteilung";
 const KEY_NAME = "fehlruf-name";
 
-type Done = { line: string; partNo: string; qty: number; urgent: boolean };
+type Done = { line: string; partNo: string; qty: number; orderNo: string; urgent: boolean };
 
 export function RufPage() {
   const { code } = useParams({ from: "/ruf/$code" });
@@ -21,6 +21,7 @@ export function RufPage() {
   const [dept, setDept] = useState("");
   const [name, setName] = useState("");
   const [qty, setQty] = useState(1);
+  const [orderNo, setOrderNo] = useState("");
   const [stopped, setStopped] = useState(false);
   const [note, setNote] = useState("");
   const [showNote, setShowNote] = useState(false);
@@ -66,7 +67,7 @@ export function RufPage() {
         <div className="card rise p-5 text-left">
           <p className="font-mono text-xl font-semibold break-all">{done.partNo}</p>
           <p className="mt-1 text-base text-muted tabular-nums">
-            {done.qty} Stück · {done.line}
+            {[`${done.qty} Stück`, done.line, done.orderNo ? `Auftrag ${done.orderNo}` : ""].filter(Boolean).join(" · ")}
           </p>
           {done.urgent ? (
             <p className="mt-3 inline-flex rounded-full bg-hot-soft px-3 py-1 text-sm font-semibold text-hot">
@@ -74,9 +75,19 @@ export function RufPage() {
             </p>
           ) : null}
         </div>
+        <p className="text-base text-muted">
+          Kommt das Teil an, unter <span className="font-semibold text-text">Meine</span> auf „Erhalten“ tippen.
+        </p>
+        <Link
+          to="/meine"
+          className="press inline-flex h-14 items-center justify-center gap-2 rounded-2xl bg-brand text-base font-semibold text-brand-ink"
+        >
+          <ClipboardList className="size-5" aria-hidden="true" />
+          Meine Rufe ansehen
+        </Link>
         <Link
           to="/"
-          className="press inline-flex h-14 items-center justify-center gap-2 rounded-2xl bg-brand text-base font-semibold text-brand-ink"
+          className="press inline-flex h-14 items-center justify-center gap-2 rounded-2xl bg-surface-2 text-base font-semibold"
         >
           <ScanLine className="size-5" aria-hidden="true" />
           Nächstes Teil scannen
@@ -109,11 +120,12 @@ export function RufPage() {
             note,
             requester: name,
             stationCode: station ? station.code : "",
+            orderNo,
           })
           .then((call) => {
             remember.set(KEY_DEPT, call.line);
             remember.set(KEY_NAME, name.trim());
-            setDone({ line: call.line, partNo: call.partNo, qty: call.qty, urgent: stopped });
+            setDone({ line: call.line, partNo: call.partNo, qty: call.qty, orderNo: call.orderNo, urgent: stopped });
           })
           .catch((err: unknown) => setError(err instanceof Error ? err.message : "Nicht angekommen. Nochmal senden."))
           .finally(() => setPending(false));
@@ -163,39 +175,6 @@ export function RufPage() {
         ) : null}
       </section>
 
-      <div className="grid gap-3">
-        <Field label="Abteilung / Linie">
-          <TextInput
-            value={dept}
-            onChange={(event) => setDept(event.target.value)}
-            placeholder="z. B. Montage oder Linie 3"
-            autoComplete="off"
-            autoCapitalize="words"
-            enterKeyHint="next"
-          />
-        </Field>
-        {choices.length > 0 ? (
-          <div className="flex flex-wrap gap-2">
-            {choices.map((item) => (
-              <Chip key={item} size="lg" active={dept === item} onClick={() => setDept(item)}>
-                {item}
-              </Chip>
-            ))}
-          </div>
-        ) : null}
-      </div>
-
-      <Field label="Dein Name" hint="freiwillig">
-        <TextInput
-          value={name}
-          onChange={(event) => setName(event.target.value)}
-          placeholder="Vorname"
-          autoComplete="given-name"
-          autoCapitalize="words"
-          maxLength={40}
-        />
-      </Field>
-
       <div className="grid gap-2">
         <span className="text-sm font-semibold">Menge</span>
         <div className="card flex items-center justify-between p-2">
@@ -228,33 +207,79 @@ export function RufPage() {
         </div>
       </div>
 
-      <button
-        type="button"
-        role="switch"
-        aria-checked={stopped}
-        className={`press flex items-center gap-4 rounded-[20px] border p-4 text-left transition-colors ${
-          stopped ? "border-hot bg-hot-soft" : "border-line bg-surface"
-        }`}
-        onClick={() => setStopped((v) => !v)}
-      >
-        <span
-          className={`grid size-12 shrink-0 place-items-center rounded-2xl ${stopped ? "bg-hot text-white" : "bg-surface-2 text-muted"}`}
-        >
-          <TriangleAlert className="size-6" aria-hidden="true" />
-        </span>
-        <span className="flex-1">
-          <span className={`block text-base font-semibold ${stopped ? "text-hot" : ""}`}>Maschine steht still</span>
-          <span className="block text-sm text-muted">Dann ist es dringend.</span>
-        </span>
-        <span
-          aria-hidden="true"
-          className={`relative h-8 w-14 shrink-0 rounded-full transition-colors ${stopped ? "bg-hot" : "bg-line"}`}
-        >
-          <span
-            className={`absolute top-1 size-6 rounded-full bg-white shadow transition-[left] ${stopped ? "left-7" : "left-1"}`}
+      <div className="grid gap-2">
+        <span className="text-sm font-semibold">Wie dringend?</span>
+        <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Wie dringend">
+          <button
+            type="button"
+            role="radio"
+            aria-checked={!stopped}
+            className={`press grid h-20 place-items-center rounded-[20px] border-2 px-3 text-center text-base font-semibold ${
+              !stopped ? "border-brand bg-brand-soft text-brand" : "border-line bg-surface text-muted"
+            }`}
+            onClick={() => setStopped(false)}
+          >
+            Normal
+          </button>
+          <button
+            type="button"
+            role="radio"
+            aria-checked={stopped}
+            className={`press flex h-20 items-center justify-center gap-2 rounded-[20px] border-2 px-3 text-center text-base leading-tight font-bold ${
+              stopped ? "border-hot bg-hot text-white" : "border-line bg-surface text-hot"
+            }`}
+            onClick={() => setStopped(true)}
+          >
+            <TriangleAlert className="size-6 shrink-0" aria-hidden="true" />
+            Maschine steht
+          </button>
+        </div>
+      </div>
+
+      <div className="grid gap-3">
+        <Field label="Abteilung / Linie">
+          <TextInput
+            value={dept}
+            onChange={(event) => setDept(event.target.value)}
+            placeholder="z. B. Montage oder Linie 3"
+            autoComplete="off"
+            autoCapitalize="words"
+            enterKeyHint="next"
           />
-        </span>
-      </button>
+        </Field>
+        {choices.length > 0 ? (
+          <div className="flex flex-wrap gap-2">
+            {choices.map((item) => (
+              <Chip key={item} size="lg" active={dept === item} onClick={() => setDept(item)}>
+                {item}
+              </Chip>
+            ))}
+          </div>
+        ) : null}
+      </div>
+
+      <Field label="Auftrag" hint="freiwillig">
+        <TextInput
+          value={orderNo}
+          onChange={(event) => setOrderNo(event.target.value)}
+          placeholder="Auftragsnummer"
+          autoComplete="off"
+          autoCapitalize="characters"
+          maxLength={32}
+          enterKeyHint="next"
+        />
+      </Field>
+
+      <Field label="Dein Name" hint="freiwillig">
+        <TextInput
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+          placeholder="Vorname"
+          autoComplete="given-name"
+          autoCapitalize="words"
+          maxLength={40}
+        />
+      </Field>
 
       {showNote ? (
         <Field label="Hinweis" hint="freiwillig">
@@ -263,7 +288,7 @@ export function RufPage() {
             onChange={(event) => setNote(event.target.value)}
             rows={2}
             maxLength={140}
-            placeholder="z. B. Maschine 4, Auftrag 18420"
+            placeholder="z. B. Maschine 4"
             autoFocus
           />
         </Field>
@@ -278,9 +303,11 @@ export function RufPage() {
       )}
 
       {error ? <ErrorText>{error}</ErrorText> : null}
-      <Button type="submit" full disabled={pending}>
-        {pending ? "Wird gesendet…" : "Senden"}
-      </Button>
+      <div className="sticky bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-10 -mx-4 bg-bg/90 px-4 py-2 backdrop-blur-md">
+        <Button type="submit" full disabled={pending} className={`h-16 text-lg ${stopped ? "!bg-hot !text-white" : ""}`}>
+          {pending ? "Wird gesendet…" : stopped ? "Dringend melden" : "Teil melden"}
+        </Button>
+      </div>
     </form>
   );
 }
