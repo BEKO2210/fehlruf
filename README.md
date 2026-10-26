@@ -63,10 +63,10 @@ Gleich nach dem ersten Deploy `…/fehlruf/#/tafel` öffnen und die PIN festlege
 **Backup:**
 
 ```bash
-docker run --rm -v api_fehlruf-data:/data -v "$PWD":/b alpine cp /data/fehlruf.db /b/
+docker run --rm -v api_fehlruf-data:/data -v "$PWD":/b alpine sh -c "cp /data/fehlruf.db* /b/"
 ```
 
-Den Volume-Namen zeigt `docker volume ls`.
+Den Volume-Namen zeigt `docker volume ls`. Das `*` ist wichtig: SQLite läuft im WAL-Modus, frische Daten stehen in `fehlruf.db-wal`.
 
 ## API
 
