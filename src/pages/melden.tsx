@@ -9,18 +9,17 @@ export function MeldenPage() {
   const [typed, setTyped] = useState("");
   const [error, setError] = useState<string | null>(null);
 
+  // Liefert true, wenn der Code brauchbar war; der Scanner scannt sonst weiter.
   const open = useCallback(
-    (raw: string) => {
+    (raw: string): boolean => {
       const hit = parseScan(raw);
-      if (!hit) {
-        setError("Nichts erkannt. Näher ran, oder Nummer unten eintippen.");
-        return;
-      }
+      if (!hit) return false;
       if (hit.kind === "station") {
         void navigate({ to: "/ruf/$code", params: { code: hit.code } });
-        return;
+        return true;
       }
       void navigate({ to: "/ruf/$code", params: { code: "neu" }, search: { teil: hit.partNo } });
+      return true;
     },
     [navigate],
   );
@@ -40,7 +39,7 @@ export function MeldenPage() {
         className="grid gap-3"
         onSubmit={(event) => {
           event.preventDefault();
-          open(typed);
+          if (!open(typed)) setError("Nummer fehlt. Bitte eintippen.");
         }}
       >
         <div className="flex gap-2">
@@ -55,9 +54,10 @@ export function MeldenPage() {
             autoCapitalize="characters"
             autoComplete="off"
             enterKeyHint="go"
+            size={1}
             className="h-14 min-w-0 flex-1 rounded-2xl border border-line bg-surface px-4 font-mono text-base outline-none placeholder:font-sans placeholder:text-subtle focus:border-brand"
           />
-          <Button type="submit" disabled={!typed.trim()} className="shrink-0">
+          <Button type="submit" disabled={!typed.trim()} className="shrink-0 disabled:border disabled:border-line">
             Weiter
           </Button>
         </div>

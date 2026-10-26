@@ -33,7 +33,12 @@ const CAMERA_OK = "fehlruf-kamera";
 function cameraMessage(err: unknown): string {
   const name = err instanceof Error ? err.name : "";
   if (name === "NotAllowedError" || name === "SecurityError") {
-    return "Kamera nicht erlaubt. Oben in der Adresszeile auf das Schloss tippen und Kamera erlauben. Oder Nummer unten eintippen.";
+    // Installierte App: keine Adresszeile, kein Schloss.
+    const standalone =
+      typeof window.matchMedia === "function" && window.matchMedia("(display-mode: standalone)").matches;
+    return standalone
+      ? "Kamera nicht erlaubt. In den Handy-Einstellungen bei Fehlruf die Kamera erlauben. Oder Nummer unten eintippen."
+      : "Kamera nicht erlaubt. Oben in der Adresszeile auf das Schloss tippen und Kamera erlauben. Oder Nummer unten eintippen.";
   }
   if (name === "NotFoundError" || name === "OverconstrainedError") {
     return "Keine Kamera gefunden. Nummer unten eintippen.";
@@ -44,7 +49,8 @@ function cameraMessage(err: unknown): string {
   return "Kamera geht nicht. Nummer unten eintippen.";
 }
 
-export function Scanner({ onCode }: { onCode: (raw: string) => void }) {
+// onCode gibt false zurück, wenn der Code nichts taugt; dann wird weitergescannt.
+export function Scanner({ onCode }: { onCode: (raw: string) => boolean | void }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const onCodeRef = useRef(onCode);
   const [armed, setArmed] = useState(false);
@@ -69,11 +75,16 @@ export function Scanner({ onCode }: { onCode: (raw: string) => void }) {
     let stream: MediaStream | null = null;
     let controls: { stop: () => void } | null = null;
 
-    const deliver = (raw: string) => {
-      if (stopped || taken) return;
+    const deliver = (raw: string): boolean => {
+      if (stopped || taken) return false;
+      if (onCodeRef.current(raw) === false) {
+        setError("Nichts erkannt. Näher ran, oder Nummer unten eintippen.");
+        return false;
+      }
       taken = true;
+      setError(null);
       if (typeof navigator.vibrate === "function") navigator.vibrate(60);
-      onCodeRef.current(raw);
+      return true;
     };
 
     const stopStream = () => {
@@ -105,10 +116,7 @@ export function Scanner({ onCode }: { onCode: (raw: string) => void }) {
             try {
               const hits = await detector.detect(video!);
               const raw = hits.find((hit) => hit.rawValue)?.rawValue;
-              if (raw) {
-                deliver(raw);
-                return;
-              }
+              if (raw && deliver(raw)) return;
             } catch {
               // frame not ready yet
             }
@@ -149,7 +157,7 @@ export function Scanner({ onCode }: { onCode: (raw: string) => void }) {
 
   return (
     <div className="grid gap-3">
-      <div className="relative aspect-[4/3] overflow-hidden rounded-[24px] bg-[#0b0d10]">
+      <div className="relative aspect-[4/3] overflow-hidden rounded-[24px] bg-black ring-1 ring-white/10">
         <video ref={videoRef} className="h-full w-full object-cover" muted playsInline />
         {/* Sucher: vier Ecken und eine laufende Linie */}
         <div className="pointer-events-none absolute inset-x-8 top-1/2 h-32 -translate-y-1/2">
