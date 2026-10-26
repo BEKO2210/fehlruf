@@ -30,10 +30,18 @@ function watch(reg: ServiceWorkerRegistration) {
 export function registerSw() {
   if (!import.meta.env.PROD || !("serviceWorker" in navigator)) return;
   let reloading = false;
+  // Lief schon ein Worker, ist ein controllerchange ohne Tipp ein anderer Tab,
+  // der die neue Version übernommen hat: dann hier die Leiste zeigen.
+  // Ohne alten Worker ist es die Erstinstallation (clients.claim), nichts tun.
+  const hadController = navigator.serviceWorker.controller !== null;
   navigator.serviceWorker.addEventListener("controllerchange", () => {
-    if (!wanted || reloading) return;
-    reloading = true;
-    window.location.reload();
+    if (reloading) return;
+    if (wanted) {
+      reloading = true;
+      window.location.reload();
+    } else if (hadController && navigator.serviceWorker.controller) {
+      setWaiting(navigator.serviceWorker.controller);
+    }
   });
   window.addEventListener("load", () => {
     navigator.serviceWorker
@@ -49,10 +57,15 @@ export function registerSw() {
   });
 }
 
-/** Neue Version übernehmen: der wartende Worker aktiviert sich, controllerchange lädt neu. */
+/** Neue Version übernehmen: der wartende Worker aktiviert sich, controllerchange lädt neu.
+ *  Ist der Worker schon aktiv (anderer Tab hat übernommen), direkt neu laden. */
 export function applyUpdate() {
   if (!waiting) return;
   wanted = true;
+  if (waiting.state === "activated") {
+    window.location.reload();
+    return;
+  }
   waiting.postMessage({ type: "SKIP_WAITING" });
 }
 

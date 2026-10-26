@@ -4,7 +4,11 @@
 // über den Cache.
 // Eine neue Version wartet, bis die Seite "SKIP_WAITING" schickt (Leiste
 // "Neue Version"), damit kein Ruf mitten in der Eingabe neu lädt.
-const CACHE = "fehlruf-v2";
+// BUILD stempelt vite.config.ts bei jedem Build neu ein. Sonst wäre diese
+// Datei nach einem reinen App-Deploy byte-gleich, der Browser fände keinen
+// neuen Worker und die Leiste käme nie.
+const BUILD = "__BUILD__";
+const CACHE = `fehlruf-${BUILD}`;
 
 self.addEventListener("message", (event) => {
   if (event.data?.type === "SKIP_WAITING") self.skipWaiting();
