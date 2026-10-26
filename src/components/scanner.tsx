@@ -29,6 +29,21 @@ const FORMATS = [
 
 const CAMERA_OK = "fehlruf-kamera";
 
+// Klartext für den Arbeiter: was ist los und was tun.
+function cameraMessage(err: unknown): string {
+  const name = err instanceof Error ? err.name : "";
+  if (name === "NotAllowedError" || name === "SecurityError") {
+    return "Kamera nicht erlaubt. Oben in der Adresszeile auf das Schloss tippen und Kamera erlauben. Oder Nummer unten eintippen.";
+  }
+  if (name === "NotFoundError" || name === "OverconstrainedError") {
+    return "Keine Kamera gefunden. Nummer unten eintippen.";
+  }
+  if (name === "NotReadableError") {
+    return "Kamera ist von einer anderen App belegt. Andere App schließen und nochmal starten. Oder Nummer unten eintippen.";
+  }
+  return "Kamera geht nicht. Nummer unten eintippen.";
+}
+
 export function Scanner({ onCode }: { onCode: (raw: string) => void }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const onCodeRef = useRef(onCode);
@@ -113,11 +128,11 @@ export function Scanner({ onCode }: { onCode: (raw: string) => void }) {
           },
         );
         remember.set(CAMERA_OK, "1");
-      } catch {
+      } catch (err) {
         remember.set(CAMERA_OK, "0");
         if (!stopped) {
           setArmed(false);
-          setError("Kamera geht nicht. Nummer unten eintippen.");
+          setError(cameraMessage(err));
         }
       }
     }
@@ -147,10 +162,10 @@ export function Scanner({ onCode }: { onCode: (raw: string) => void }) {
           ) : null}
         </div>
         {!armed ? (
-          <div className="absolute inset-0 flex flex-col items-center justify-end gap-3 bg-gradient-to-t from-black/70 via-black/20 to-transparent p-5">
+          <div className="absolute inset-0 grid place-items-center bg-black/55 p-5">
             <button
               type="button"
-              className="press inline-flex h-14 items-center gap-2 rounded-2xl bg-brand-fill px-6 text-base font-semibold text-brand-ink"
+              className="press inline-flex h-14 items-center gap-2 rounded-2xl bg-brand-fill px-7 text-base font-semibold text-brand-ink shadow-[0_8px_24px_rgb(0_0_0/0.4)]"
               onClick={() => {
                 setError(null);
                 setArmed(true);
@@ -162,7 +177,11 @@ export function Scanner({ onCode }: { onCode: (raw: string) => void }) {
           </div>
         ) : null}
       </div>
-      {error ? <p className="rounded-2xl bg-hot-soft px-4 py-3 text-sm font-medium text-hot">{error}</p> : null}
+      {error ? (
+        <p role="alert" className="rounded-2xl bg-hot-soft px-4 py-3 text-sm font-medium text-hot">
+          {error}
+        </p>
+      ) : null}
     </div>
   );
 }

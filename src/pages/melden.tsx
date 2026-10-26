@@ -1,8 +1,7 @@
 import { useNavigate } from "@tanstack/react-router";
-import { ArrowRight } from "lucide-react";
 import { useCallback, useState } from "react";
 import { Scanner } from "@/components/scanner";
-import { ErrorText, PageTitle } from "@/components/ui";
+import { Button, ErrorText, PageTitle } from "@/components/ui";
 import { parseScan } from "@/lib/format";
 
 export function MeldenPage() {
@@ -14,7 +13,7 @@ export function MeldenPage() {
     (raw: string) => {
       const hit = parseScan(raw);
       if (!hit) {
-        setError("Nichts erkannt. Nummer vom Teil eintippen.");
+        setError("Nichts erkannt. Näher ran, oder Nummer unten eintippen.");
         return;
       }
       if (hit.kind === "station") {
@@ -58,14 +57,9 @@ export function MeldenPage() {
             enterKeyHint="go"
             className="h-14 min-w-0 flex-1 rounded-2xl border border-line bg-surface px-4 font-mono text-base outline-none placeholder:font-sans placeholder:text-subtle focus:border-brand"
           />
-          <button
-            type="submit"
-            disabled={!typed.trim()}
-            aria-label="Weiter"
-            className="press grid size-14 shrink-0 place-items-center rounded-2xl bg-brand-fill text-brand-ink disabled:bg-surface-2 disabled:text-muted"
-          >
-            <ArrowRight className="size-6" aria-hidden="true" />
-          </button>
+          <Button type="submit" disabled={!typed.trim()} className="shrink-0">
+            Weiter
+          </Button>
         </div>
         {error ? <ErrorText>{error}</ErrorText> : null}
       </form>
