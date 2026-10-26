@@ -140,10 +140,10 @@ export function RufPage() {
         <Scanner
           onCode={(raw) => {
             const hit = parseScan(raw);
-            if (hit?.kind === "part") {
-              setPartNo(hit.partNo);
-              setScanning(false);
-            }
+            if (hit?.kind !== "part") return false;
+            setPartNo(hit.partNo);
+            setScanning(false);
+            return true;
           }}
         />
       ) : null}

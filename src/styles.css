@@ -12,7 +12,7 @@
   --brand: #2f6bff;
   --brand-ink: #ffffff;
   --brand-soft: #e6eeff;
-  --hot: #dc2626;
+  --hot: #b91c1c; /* 5,5:1 auf --hot-soft */
   --hot-soft: #fde8e8;
   --warn: #b45309;
   --warn-soft: #fdf1dc;

@@ -33,12 +33,17 @@ const CAMERA_OK = "fehlruf-kamera";
 function cameraMessage(err: unknown): string {
   const name = err instanceof Error ? err.name : "";
   if (name === "NotAllowedError" || name === "SecurityError") {
-    // Installierte App: keine Adresszeile, kein Schloss.
+    // Installierte App: keine Adresszeile, also in die Handy-Einstellungen.
     const standalone =
       typeof window.matchMedia === "function" && window.matchMedia("(display-mode: standalone)").matches;
-    return standalone
-      ? "Kamera nicht erlaubt. In den Handy-Einstellungen bei Fehlruf die Kamera erlauben. Oder Nummer unten eintippen."
-      : "Kamera nicht erlaubt. Oben in der Adresszeile auf das Schloss tippen und Kamera erlauben. Oder Nummer unten eintippen.";
+    if (standalone) {
+      return "Kamera nicht erlaubt. In den Handy-Einstellungen bei Fehlruf die Kamera erlauben. Oder Nummer unten eintippen.";
+    }
+    // Browser: Chrome auf Android zeigt kein Schloss mehr, Safari auf dem iPhone hatte nie eins.
+    const iphone = /iPhone|iPad|iPod/.test(navigator.userAgent);
+    return iphone
+      ? "Kamera nicht erlaubt. Auf dem iPhone: Einstellungen → Safari → Kamera → Erlauben. Oder Nummer unten eintippen."
+      : "Kamera nicht erlaubt. Oben links neben der Adresse auf das Symbol tippen und Kamera erlauben. Oder Nummer unten eintippen.";
   }
   if (name === "NotFoundError" || name === "OverconstrainedError") {
     return "Keine Kamera gefunden. Nummer unten eintippen.";
@@ -72,16 +77,21 @@ export function Scanner({ onCode }: { onCode: (raw: string) => boolean | void })
     let stopped = false;
     let taken = false;
     let timer = 0;
+    let errorTimer = 0;
     let stream: MediaStream | null = null;
     let controls: { stop: () => void } | null = null;
 
     const deliver = (raw: string): boolean => {
       if (stopped || taken) return false;
       if (onCodeRef.current(raw) === false) {
+        // Hinweis nur kurz zeigen, damit er nicht neben einem Formular-Fehler stehen bleibt.
         setError("Nichts erkannt. Näher ran, oder Nummer unten eintippen.");
+        window.clearTimeout(errorTimer);
+        errorTimer = window.setTimeout(() => setError(null), 4000);
         return false;
       }
       taken = true;
+      window.clearTimeout(errorTimer);
       setError(null);
       if (typeof navigator.vibrate === "function") navigator.vibrate(60);
       return true;
@@ -149,6 +159,7 @@ export function Scanner({ onCode }: { onCode: (raw: string) => boolean | void })
     return () => {
       stopped = true;
       window.clearTimeout(timer);
+      window.clearTimeout(errorTimer);
       controls?.stop();
       stopStream();
       if (video) video.srcObject = null;
