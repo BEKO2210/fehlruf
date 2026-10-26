@@ -198,7 +198,7 @@ export function Scanner({ onCode }: { onCode: (raw: string) => boolean | string 
 
   return (
     <div className="grid gap-3">
-      <div className="relative aspect-[4/3] overflow-hidden rounded-[24px] bg-black ring-1 ring-white/10">
+      <div className="relative aspect-[4/3] max-h-[38dvh] w-full overflow-hidden rounded-[24px] bg-black ring-1 ring-white/10">
         <video ref={videoRef} className="h-full w-full object-cover" muted playsInline />
         {/* Sucher: vier Ecken und eine laufende Linie */}
         <div className="pointer-events-none absolute inset-x-8 top-1/2 h-32 -translate-y-1/2">
