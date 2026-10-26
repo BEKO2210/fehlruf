@@ -14,22 +14,8 @@ if [ "$ZWEIG" != main ]; then
   exit 1
 fi
 
-git fetch -q origin main
-
-# Unversionierte Dateien, die der Pull überschreiben würde: identische Kopien
-# (z. B. vorab per scp eingespielte Skripte) räumen wir weg, alles andere stoppt.
-mapfile -t IM_WEG < <(comm -12 \
-  <(git ls-files --others --exclude-standard | sort) \
-  <(git diff --name-only HEAD origin/main | sort))
-for DATEI in "${IM_WEG[@]}"; do
-  if git show "origin/main:$DATEI" | cmp -s - "$DATEI"; then
-    rm -f "$DATEI"
-  else
-    echo "deploy: unversionierte Datei '$DATEI' weicht von origin/main ab – sichern oder entfernen (git stash -u), dann erneut" >&2
-    exit 1
-  fi
-done
-
+# Unversionierte Dateien im Weg (z. B. vorab per scp kopierte Skripte) stoppen
+# den Pull. Einmalig von Hand: rm -r ~/fehlruf/scripts, dann erneut.
 git pull -q --ff-only origin main
 cd api
 docker compose up -d --build

@@ -95,7 +95,7 @@ Beide Skripte laufen auf dem Heimserver im geklonten Repo (`~/fehlruf`), ohne su
 
 Zieht per `VACUUM INTO` eine konsistente Kopie aus dem laufenden Container, legt sie unter `~/fehlruf-backup/fehlruf-<YYYYMMDD-HHMM>.db` ab und löscht eigene Sicherungen, die älter als 30 Tage sind.
 
-Täglich um 2:30 Uhr per Cron. Auf belkis-home ist dieser Eintrag bereits vorhanden (`crontab -l`), sonst per `crontab -e`:
+Täglich um 2:30 Uhr per Cron, per `crontab -e` eintragen:
 
 ```
 30 2 * * * $HOME/fehlruf/scripts/backup.sh >> $HOME/fehlruf-backup/backup.log 2>&1
@@ -106,7 +106,7 @@ Täglich um 2:30 Uhr per Cron. Auf belkis-home ist dieser Eintrag bereits vorhan
 ```bash
 cd ~/fehlruf/api
 docker compose stop fehlruf-api
-VOL=$(docker volume ls -q | grep fehlruf-data)
+VOL=$(docker volume ls -q | grep -m1 -E '(^|_)fehlruf-data$')
 docker run --rm -v "$VOL:/data" -v ~/fehlruf-backup:/b alpine \
   sh -c 'rm -f /data/fehlruf.db /data/fehlruf.db-wal /data/fehlruf.db-shm && cp /b/fehlruf-20261026-0230.db /data/fehlruf.db && chown 1000:1000 /data/fehlruf.db'
 docker compose start fehlruf-api
@@ -122,7 +122,7 @@ Vorher eine frische Sicherung ziehen, falls der Stand doch noch gebraucht wird.
 # deploy: ok (e9e4af3)
 ```
 
-Prüft, dass `main` ausgecheckt ist, macht `git pull --ff-only origin main`, `docker compose up -d --build` in `api/` und wartet auf `/api/health`. Unversionierte Dateien, die der Pull überschreiben würde (z. B. vorab per scp kopierte Skripte), räumt es weg, wenn sie mit `origin/main` identisch sind; sonst bricht es mit Hinweis ab (`git stash -u`, dann erneut). Schlägt der Health-Check fehl, endet das Skript mit Exit 1 und zeigt die letzten 20 Log-Zeilen. Die Seite selbst deployt GitHub Actions beim Push.
+Prüft, dass `main` ausgecheckt ist, macht `git pull --ff-only origin main`, `docker compose up -d --build` in `api/` und wartet auf `/api/health`. Liegen unversionierte Dateien im Weg (auf belkis-home einmalig der vorab per scp kopierte Ordner `scripts/`), bricht der Pull ab: vorher `rm -r ~/fehlruf/scripts`, danach kommt der Ordner aus dem Repo. Schlägt der Health-Check fehl, endet das Skript mit Exit 1 und zeigt die letzten 20 Log-Zeilen. Die Seite selbst deployt GitHub Actions beim Push.
 
 ## Lokal
 

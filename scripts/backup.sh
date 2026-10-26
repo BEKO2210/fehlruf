@@ -31,10 +31,11 @@ NODE
 )
 docker exec "$CONTAINER" node -e "$JS" "$TMP"
 
-# Aus dem Volume in den Zielordner kopieren, dann Tmp-Datei entfernen.
-# Als eigener Nutzer (uid 1000 = node im Container), damit die Sicherung uns gehört.
+# Aus dem Volume in den Zielordner kopieren, als eigener Nutzer, damit die
+# Sicherung uns gehört. Die Tmp-Datei in /data darf nur uid 1000 (node) löschen;
+# als anderer Nutzer bleibt sie liegen und wird beim nächsten Lauf überschrieben.
 docker run --rm --user "$(id -u):$(id -g)" -v "$VOLUME:/data" -v "$ZIEL:/b" alpine \
-  sh -c "cp /data/backup-tmp.db /b/$DATEI && rm -f /data/backup-tmp.db"
+  sh -c "cp /data/backup-tmp.db /b/$DATEI && (rm -f /data/backup-tmp.db || true)"
 
 # Alte Sicherungen (eigenes Namensschema) nach 30 Tagen löschen.
 find "$ZIEL" -maxdepth 1 -name 'fehlruf-[0-9]*-[0-9]*.db' -mtime +30 -delete
