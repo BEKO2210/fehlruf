@@ -1,14 +1,15 @@
 import { Link } from "@tanstack/react-router";
-import { Bell, BellOff, ChevronDown, Lock, QrCode, Truck, Check, RotateCcw } from "lucide-react";
+import { BarChart3, Bell, BellOff, ChevronDown, Lock, MessageSquare, QrCode, Truck, Check, RotateCcw } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button, Chip, ErrorText, Field, TextInput } from "@/components/ui";
-import { api, ApiError, type CallRow, type TafelState, type Urgency } from "@/lib/api";
+import { api, ApiError, type CallPatch, type CallRow, type TafelState, type Urgency } from "@/lib/api";
 import {
   armBeep,
   beep,
   remember,
   uniqueLines,
   URGENCY_RANK,
+  relativeWhen,
   urgencyLabel,
   waitLabel,
   waitShort,
@@ -124,7 +125,7 @@ type Filter = "open" | "underway" | "done";
 
 const TABS: ReadonlyArray<readonly [Filter, string]> = [
   ["open", "Offen"],
-  ["underway", "Unterwegs"],
+  ["underway", "Gesendet"],
   ["done", "Erledigt"],
 ];
 
@@ -142,7 +143,7 @@ function Board({ onLocked }: { onLocked: () => void }) {
 
   const load = useCallback(() => {
     api
-      .calls()
+      .calls(document.visibilityState === "visible" && document.hasFocus())
       .then((rows) => {
         setCalls(rows);
         setLoaded(true);
@@ -185,10 +186,16 @@ function Board({ onLocked }: { onLocked: () => void }) {
     for (const id of ids) seen.current.add(id);
     const newest = fresh[0];
     if (!newest) return;
-    setBanner(`${newest.partNo} · ${newest.qty} Stück · ${newest.line}`);
+    setBanner(`${newest.urgency === "sofort" ? "DRINGEND · " : ""}${newest.partNo} · ${newest.qty} Stück · ${newest.line}`);
     if (sound) beep();
     if (typeof navigator.vibrate === "function") navigator.vibrate([30, 40, 30]);
   }, [calls, loaded, sound]);
+
+  useEffect(() => {
+    if (!banner) return;
+    const timer = window.setTimeout(() => setBanner(null), 20000);
+    return () => window.clearTimeout(timer);
+  }, [banner]);
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 30000);
@@ -198,7 +205,8 @@ function Board({ onLocked }: { onLocked: () => void }) {
   const active = calls.filter((call) => call.status !== "done");
   const open = calls.filter((call) => call.status === "open");
   const urgent = active.filter((call) => call.urgency === "sofort").length;
-  const oldest = open.reduce((min, call) => Math.min(min, call.createdAt), Infinity);
+  // Die Zeit läuft, bis "Erhalten" bestätigt ist, also auch bei "Gesendet".
+  const oldest = active.reduce((min, call) => Math.min(min, call.createdAt), Infinity);
   const count = (status: Filter) => calls.filter((call) => call.status === status).length;
 
   const inFilter = calls.filter((call) => call.status === filter);
@@ -214,12 +222,13 @@ function Board({ onLocked }: { onLocked: () => void }) {
       return a.createdAt - b.createdAt;
     });
 
-  async function update(call: CallRow, patch: Partial<Pick<CallRow, "status" | "urgency">>) {
+  async function update(call: CallRow, patch: CallPatch) {
     setBusy(call.id);
     const prev = calls;
     setCalls(calls.map((item) => (item.id === call.id ? { ...item, ...patch, updatedAt: Date.now() } : item)));
     try {
-      await api.updateCall(call.id, patch);
+      const row = await api.updateCall(call.id, patch);
+      setCalls((list) => list.map((item) => (item.id === row.id ? row : item)));
     } catch (err) {
       setCalls(prev);
       if (err instanceof ApiError && err.status === 401) onLocked();
@@ -232,6 +241,14 @@ function Board({ onLocked }: { onLocked: () => void }) {
     <div className="grid gap-5">
       <div className="flex items-center justify-between gap-3">
         <h1 className="text-[28px] leading-tight font-bold tracking-tight">Tafel</h1>
+        <div className="flex gap-2">
+        <Link
+          to="/statistik"
+          aria-label="Statistik"
+          className="press grid size-12 place-items-center rounded-2xl border border-line bg-surface text-muted"
+        >
+          <BarChart3 className="size-5" aria-hidden="true" />
+        </Link>
         <button
           type="button"
           aria-pressed={sound}
@@ -249,15 +266,16 @@ function Board({ onLocked }: { onLocked: () => void }) {
         >
           {sound ? <Bell className="size-5" aria-hidden="true" /> : <BellOff className="size-5" aria-hidden="true" />}
         </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-3 gap-2">
-        <Stat label="Offen" value={String(open.length)} />
+        <Stat label="Noch nicht gesendet" value={String(open.length)} />
         <Stat label="Dringend" value={String(urgent)} tone={urgent > 0 ? "hot" : undefined} />
         <Stat
-          label="Wartet max."
-          value={open.length ? waitShort(oldest, now) : "–"}
-          tone={open.length ? toneOf(waitTone(oldest, now)) : undefined}
+          label="Längste Wartezeit"
+          value={active.length ? waitShort(oldest, now) : "–"}
+          tone={active.length ? toneOf(waitTone(oldest, now)) : undefined}
         />
       </div>
 
@@ -265,7 +283,7 @@ function Board({ onLocked }: { onLocked: () => void }) {
 
       <div aria-live="assertive">
         {banner ? (
-          <div className="rise flex items-center gap-3 rounded-2xl bg-brand px-4 py-3 text-brand-ink">
+          <div className="rise flex items-center gap-3 rounded-2xl bg-brand px-4 py-3 text-brand-ink" onClick={() => setBanner(null)}>
             <span className="rounded-full bg-white/20 px-2 py-0.5 text-xs font-bold uppercase">Neu</span>
             <span className="min-w-0 truncate text-sm font-medium">{banner}</span>
           </div>
@@ -393,6 +411,8 @@ const PRIO_STYLE: Record<Urgency, { bar: string; active: string }> = {
 
 const urgencies: Urgency[] = ["sofort", "heute", "normal"];
 
+const REPLIES = ["Kommt gleich", "Dauert länger", "Nicht auf Lager", "Bitte anrufen"];
+
 function CallCard({
   call,
   now,
@@ -402,33 +422,68 @@ function CallCard({
   call: CallRow;
   now: number;
   busy: boolean;
-  onChange: (patch: Partial<Pick<CallRow, "status" | "urgency">>) => void;
+  onChange: (patch: CallPatch) => void;
 }) {
+  const [replyOpen, setReplyOpen] = useState(false);
+  const [draft, setDraft] = useState("");
   const isDone = call.status === "done";
-  const tone = isDone ? "fresh" : waitTone(call.createdAt, now);
-  const badge =
-    tone === "late" ? "bg-hot-soft text-hot" : tone === "slow" ? "bg-warn-soft text-warn" : "bg-surface-2 text-muted";
-  const meta = [`${call.qty} Stück`, call.requester, call.stationCode ? `Platz ${call.stationCode}` : ""].filter(Boolean);
+  const urgent = !isDone && call.urgency === "sofort";
+  // Gestoppt wird erst bei "Erhalten".
+  const end = isDone ? (call.receivedAt ?? call.updatedAt) : now;
+  const tone = isDone ? "fresh" : waitTone(call.createdAt, now, call.urgency);
+  const waitColor = tone === "late" ? "text-hot" : tone === "slow" ? "text-warn" : "text-text";
+  const meta = [call.requester, call.stationCode ? `Platz ${call.stationCode}` : ""].filter(Boolean);
 
   return (
-    <article className={`card relative grid gap-4 overflow-hidden p-4 pl-5 ${isDone ? "opacity-70" : ""}`}>
+    <article
+      className={`card relative grid gap-3 overflow-hidden p-4 pl-5 ${isDone ? "opacity-70" : ""} ${urgent ? "!border-hot bg-hot-soft" : ""}`}
+    >
       <span className={`absolute inset-y-0 left-0 w-1.5 ${isDone ? "bg-ok" : PRIO_STYLE[call.urgency].bar}`} />
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-xs font-semibold tracking-wider text-subtle uppercase">Abteilung / Linie</p>
+          {urgent ? (
+            <p className="mb-1 inline-flex rounded-full bg-hot px-2.5 py-0.5 text-xs font-bold tracking-wide text-white uppercase">
+              Dringend
+            </p>
+          ) : null}
           <h2 className="truncate text-lg font-bold tracking-tight">{call.line}</h2>
         </div>
-        <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold tabular-nums ${badge}`}>
-          {isDone ? "erledigt" : waitLabel(call.createdAt, now)}
-        </span>
+        <div className="shrink-0 text-right">
+          <p className={`text-xl font-bold tabular-nums ${isDone ? "text-ok" : waitColor}`}>
+            {waitLabel(call.createdAt, end)}
+          </p>
+          <p className="text-xs text-muted">{isDone ? "bis erhalten" : "wartet"}</p>
+        </div>
       </div>
 
       <div>
-        <p className="font-mono text-xl font-semibold tracking-tight break-all">{call.partNo}</p>
-        <p className="mt-0.5 text-sm text-muted tabular-nums">{meta.join(" · ")}</p>
+        <p className="font-mono text-xl font-semibold tracking-tight break-all">
+          {call.partNo} <span className="font-sans text-base font-bold text-muted">× {call.qty}</span>
+        </p>
+        {call.orderNo ? <p className="mt-0.5 text-base font-semibold">Auftrag {call.orderNo}</p> : null}
+        {meta.length ? <p className="mt-0.5 text-sm text-muted">{meta.join(" · ")}</p> : null}
       </div>
 
       {call.note ? <p className="rounded-xl bg-surface-2 px-3 py-2 text-sm">{call.note}</p> : null}
+
+      {call.reply ? (
+        <p className="flex items-center gap-2 text-sm text-brand">
+          <MessageSquare className="size-4 shrink-0" aria-hidden="true" />
+          <span className="font-semibold">Deine Antwort: {call.reply}</span>
+        </p>
+      ) : null}
+
+      {call.status === "underway" ? (
+        <p className="rounded-xl bg-warn-soft px-3 py-2 text-sm font-semibold text-warn">
+          Gesendet {call.sentAt ? relativeWhen(call.sentAt, now) : ""} · wartet auf „Erhalten“ vom Anforderer
+        </p>
+      ) : null}
+
+      {isDone ? (
+        <p className="text-sm font-semibold text-ok">
+          {call.receivedBy === "lager" ? "Vom Lager geschlossen" : "Anforderer hat Erhalt bestätigt"}
+        </p>
+      ) : null}
 
       {!isDone ? (
         <div className="grid grid-cols-3 gap-1 rounded-xl bg-surface-2 p-1" role="group" aria-label="Prio">
@@ -438,7 +493,7 @@ function CallCard({
               type="button"
               disabled={busy}
               aria-pressed={call.urgency === item}
-              className={`press h-9 rounded-lg text-sm font-semibold ${
+              className={`press h-10 rounded-lg text-sm font-semibold ${
                 call.urgency === item ? PRIO_STYLE[item].active : "text-muted"
               }`}
               onClick={() => onChange({ urgency: item })}
@@ -449,11 +504,50 @@ function CallCard({
         </div>
       ) : null}
 
+      {!isDone && replyOpen ? (
+        <div className="grid gap-2">
+          <div className="flex flex-wrap gap-2">
+            {REPLIES.map((text) => (
+              <Chip
+                key={text}
+                active={call.reply === text}
+                onClick={() => {
+                  onChange({ reply: call.reply === text ? "" : text });
+                  setReplyOpen(false);
+                }}
+              >
+                {text}
+              </Chip>
+            ))}
+          </div>
+          <form
+            className="flex gap-2"
+            onSubmit={(event) => {
+              event.preventDefault();
+              onChange({ reply: draft.trim() });
+              setDraft("");
+              setReplyOpen(false);
+            }}
+          >
+            <TextInput
+              value={draft}
+              onChange={(event) => setDraft(event.target.value)}
+              placeholder="Eigene Antwort"
+              maxLength={80}
+              className="h-11"
+            />
+            <Button type="submit" variant="muted" className="h-11" disabled={!draft.trim()}>
+              OK
+            </Button>
+          </form>
+        </div>
+      ) : null}
+
       <div className="grid grid-cols-2 gap-2">
         {call.status === "open" ? (
-          <Button variant="muted" disabled={busy} onClick={() => onChange({ status: "underway" })}>
+          <Button className="h-12" disabled={busy} onClick={() => onChange({ status: "underway" })}>
             <Truck className="size-5" aria-hidden="true" />
-            Unterwegs
+            Gesendet
           </Button>
         ) : (
           <Button variant="ghost" disabled={busy} onClick={() => onChange({ status: "open" })}>
@@ -462,15 +556,22 @@ function CallCard({
           </Button>
         )}
         {!isDone ? (
-          <Button className="h-12" disabled={busy} onClick={() => onChange({ status: "done" })}>
-            <Check className="size-5" aria-hidden="true" />
-            Erledigt
+          <Button variant="muted" disabled={busy} onClick={() => setReplyOpen((v) => !v)}>
+            <MessageSquare className="size-5" aria-hidden="true" />
+            Antwort
           </Button>
-        ) : (
-          <span className="grid h-12 place-items-center rounded-2xl bg-ok-soft text-sm font-semibold text-ok">
-            Erledigt
-          </span>
-        )}
+        ) : null}
+        {!isDone ? (
+          <Button
+            variant={call.status === "underway" ? "primary" : "ghost"}
+            className={`col-span-2 ${call.status === "underway" ? "!bg-ok !text-white" : ""}`}
+            disabled={busy}
+            onClick={() => onChange({ status: "done" })}
+          >
+            <Check className="size-5" aria-hidden="true" />
+            {call.status === "underway" ? "Erhalten (selbst bestätigen)" : "Schon erledigt"}
+          </Button>
+        ) : null}
       </div>
     </article>
   );

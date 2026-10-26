@@ -10,7 +10,7 @@ export const URGENCY_RANK: Record<Urgency, number> = { sofort: 0, heute: 1, norm
 
 const STATUS_LABEL: Record<CallStatus, string> = {
   open: "Offen",
-  underway: "Unterwegs",
+  underway: "Gesendet",
   done: "Erledigt",
 };
 
@@ -63,10 +63,12 @@ export function parseScan(raw: string): ScanResult | null {
 }
 
 /** Minutes a call has been waiting, and how loud the board should be about it. */
-export function waitTone(ms: number, now: number): "fresh" | "slow" | "late" {
+export function waitTone(ms: number, now: number, urgency: Urgency = "normal"): "fresh" | "slow" | "late" {
   const min = (now - ms) / 60000;
-  if (min >= 120) return "late";
-  if (min >= 30) return "slow";
+  // Steht die Maschine, zählt jede Minute: gelb ab 5, rot ab 15.
+  const [slow, late] = urgency === "sofort" ? [5, 15] : [30, 120];
+  if (min >= late) return "late";
+  if (min >= slow) return "slow";
   return "fresh";
 }
 
