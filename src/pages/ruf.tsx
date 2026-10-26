@@ -160,7 +160,7 @@ export function RufPage() {
           <Package className="size-6" aria-hidden="true" />
         </div>
         <label className="min-w-0 flex-1">
-          <span className="block text-xs font-semibold tracking-wider text-subtle uppercase">Teil</span>
+          <span className="mb-1 block text-xs font-semibold tracking-wider text-subtle uppercase">Teil</span>
           <input
             ref={partRef}
             value={partNo}
@@ -171,7 +171,7 @@ export function RufPage() {
             placeholder="Nummer vom Teil"
             autoComplete="off"
             autoCapitalize="characters"
-            className="-mx-1 w-[calc(100%+0.5rem)] rounded-lg bg-transparent px-1 py-0.5 font-mono text-lg font-semibold placeholder:font-sans placeholder:text-base placeholder:font-normal placeholder:text-subtle"
+            className="-mx-1 w-[calc(100%+0.5rem)] rounded-lg bg-transparent px-1 py-1 font-mono text-lg font-semibold placeholder:font-sans placeholder:text-base placeholder:font-normal placeholder:text-subtle"
           />
           {partNo.length > 20 ? (
             // Lange Nummern passen nicht in die Zeile: darunter komplett zeigen, damit klar ist, was gemeldet wird.

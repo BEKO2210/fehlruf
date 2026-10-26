@@ -116,9 +116,10 @@
     border-color: var(--brand);
   }
 
-  /* Rahmenlose Felder (Teil, Menge): Ring bekommt Luft zum Text. */
+  /* Rahmenlose Felder (Teil, Menge): Ring bekommt etwas Luft zum Text, aber nicht so viel,
+     dass er in die Beschriftung darüber ragt. */
   input.bg-transparent:focus-visible {
-    outline-offset: 3px;
+    outline-offset: 1px;
   }
 
   h1,

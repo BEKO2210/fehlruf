@@ -418,12 +418,12 @@ function MissingSummary({ calls }: { calls: CallRow[] }) {
       </h2>
       <ul className="mt-3 grid grid-cols-[minmax(0,1fr)] gap-2">
         {rows.slice(0, 8).map((row) => (
-          <li key={row.partNo} className="flex min-w-0 items-center justify-between gap-3 text-sm">
+          <li key={row.partNo} className="flex min-w-0 items-start justify-between gap-3 text-sm">
             <span className="flex min-w-0 items-center gap-2">
               <span className={`size-2 shrink-0 rounded-full ${row.urgent ? "bg-hot-fill" : "bg-line"}`} />
               <span className="truncate font-mono font-semibold">{row.partNo}</span>
             </span>
-            <span className="min-w-0 max-w-[55%] truncate text-muted tabular-nums">
+            <span className="min-w-0 max-w-[55%] text-right text-muted tabular-nums">
               {row.qty} Stk · {row.depts.size === 1 ? [...row.depts][0] : `${row.depts.size} Abteilungen/Linien`}
             </span>
           </li>
@@ -672,7 +672,7 @@ function Settings({ onLocked }: { onLocked: () => void }) {
 
   return (
     <details className="card group mt-2 p-4">
-      <summary className="flex cursor-pointer list-none items-center justify-between text-sm font-semibold text-muted">
+      <summary className="-m-1 flex cursor-pointer list-none items-center justify-between rounded-xl p-1 text-sm font-semibold text-muted">
         Einstellungen
         <ChevronDown className="size-4 transition-transform group-open:rotate-180" aria-hidden="true" />
       </summary>

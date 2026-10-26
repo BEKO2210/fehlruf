@@ -90,12 +90,15 @@ export function Shell({ children }: { children: ReactNode }) {
                   <Icon className="size-[22px]" strokeWidth={2} aria-hidden="true" />
                   {item.label}
                   {badge ? (
-                    <span
-                      className="absolute top-1 right-[calc(50%-26px)] grid h-5 min-w-5 place-items-center rounded-full bg-hot-fill px-1 text-[11px] font-bold text-white tabular-nums"
-                      aria-label={`${badge} offen`}
-                    >
-                      {badge}
-                    </span>
+                    <>
+                      <span
+                        className="absolute top-1 right-[calc(50%-26px)] grid h-5 min-w-5 place-items-center rounded-full bg-hot-fill px-1 text-[11px] font-bold text-white tabular-nums"
+                        aria-hidden="true"
+                      >
+                        {badge}
+                      </span>
+                      <span className="sr-only">, {badge} offen</span>
+                    </>
                   ) : null}
                 </Link>
               </li>

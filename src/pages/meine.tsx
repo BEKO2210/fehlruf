@@ -87,7 +87,7 @@ export function MeinePage() {
     <div className="mx-auto grid w-full max-w-lg gap-5">
       <div>
         <PageTitle title="Meine Rufe" sub="Was du gemeldet hast. Kommt das Teil an: „Erhalten“ tippen." />
-        <p className="mt-1 text-xs text-subtle">Nur auf diesem Handy sichtbar.</p>
+        <p className="mt-1 text-xs text-muted">Nur auf diesem Handy sichtbar.</p>
       </div>
 
       {offline ? <ErrorText>Keine Verbindung zum Server. Versuche es weiter…</ErrorText> : null}
