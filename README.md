@@ -60,13 +60,7 @@ Gleich nach dem ersten Deploy `…/fehlruf/#/tafel` öffnen und die PIN festlege
 
 **Ausfall:** Läuft der Heimserver nicht, kann niemand melden. Die Seite zeigt dann „Keine Verbindung zum Server“.
 
-**Backup:**
-
-```bash
-docker run --rm -v api_fehlruf-data:/data -v "$PWD":/b alpine sh -c "cp /data/fehlruf.db* /b/"
-```
-
-Den Volume-Namen zeigt `docker volume ls`. Das `*` ist wichtig: SQLite läuft im WAL-Modus, frische Daten stehen in `fehlruf.db-wal`.
+**Backup:** siehe [Betrieb](#betrieb) (`scripts/backup.sh`).
 
 ## API
 
@@ -101,7 +95,7 @@ Beide Skripte laufen auf dem Heimserver im geklonten Repo (`~/fehlruf`), ohne su
 
 Zieht per `VACUUM INTO` eine konsistente Kopie aus dem laufenden Container, legt sie unter `~/fehlruf-backup/fehlruf-<YYYYMMDD-HHMM>.db` ab und löscht eigene Sicherungen, die älter als 30 Tage sind.
 
-Täglich um 2:30 Uhr per Cron (`crontab -e`):
+Täglich um 2:30 Uhr per Cron. Auf belkis-home ist dieser Eintrag bereits vorhanden (`crontab -l`), sonst per `crontab -e`:
 
 ```
 30 2 * * * $HOME/fehlruf/scripts/backup.sh >> $HOME/fehlruf-backup/backup.log 2>&1
@@ -128,7 +122,7 @@ Vorher eine frische Sicherung ziehen, falls der Stand doch noch gebraucht wird.
 # deploy: ok (e9e4af3)
 ```
 
-Macht `git pull --ff-only` auf `main`, `docker compose up -d --build` in `api/` und wartet auf `/api/health`. Schlägt der Health-Check fehl, endet das Skript mit Exit 1 und zeigt die letzten 20 Log-Zeilen. Die Seite selbst deployt GitHub Actions beim Push.
+Prüft, dass `main` ausgecheckt ist, macht `git pull --ff-only origin main`, `docker compose up -d --build` in `api/` und wartet auf `/api/health`. Unversionierte Dateien, die der Pull überschreiben würde (z. B. vorab per scp kopierte Skripte), räumt es weg, wenn sie mit `origin/main` identisch sind; sonst bricht es mit Hinweis ab (`git stash -u`, dann erneut). Schlägt der Health-Check fehl, endet das Skript mit Exit 1 und zeigt die letzten 20 Log-Zeilen. Die Seite selbst deployt GitHub Actions beim Push.
 
 ## Lokal
 

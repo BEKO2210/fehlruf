@@ -10,7 +10,7 @@ TMP=/data/backup-tmp.db
 STAMP=$(date +%Y%m%d-%H%M)
 DATEI="fehlruf-$STAMP.db"
 
-VOLUME=$(docker volume ls -q | grep -m1 'fehlruf-data' || true)
+VOLUME=$(docker volume ls -q | grep -m1 -E '(^|_)fehlruf-data$' || true)
 if [ -z "$VOLUME" ]; then
   echo "backup: Volume fehlruf-data nicht gefunden" >&2
   exit 1
@@ -32,7 +32,8 @@ NODE
 docker exec "$CONTAINER" node -e "$JS" "$TMP"
 
 # Aus dem Volume in den Zielordner kopieren, dann Tmp-Datei entfernen.
-docker run --rm -v "$VOLUME:/data" -v "$ZIEL:/b" alpine \
+# Als eigener Nutzer (uid 1000 = node im Container), damit die Sicherung uns gehört.
+docker run --rm --user "$(id -u):$(id -g)" -v "$VOLUME:/data" -v "$ZIEL:/b" alpine \
   sh -c "cp /data/backup-tmp.db /b/$DATEI && rm -f /data/backup-tmp.db"
 
 # Alte Sicherungen (eigenes Namensschema) nach 30 Tagen löschen.
