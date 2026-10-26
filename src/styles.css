@@ -92,6 +92,8 @@
     min-height: 100dvh;
     font-family: var(--font-sans);
     line-height: 1.5;
+    /* Zahlen überall gleich breit: Wartezeiten und Mengen springen nicht. */
+    font-variant-numeric: tabular-nums;
     background: var(--bg);
     color: var(--text);
   }
@@ -100,9 +102,18 @@
     cursor: pointer;
   }
 
+  /* Ein Fokusring für alles: Tastatur sieht ihn, Finger nicht. Der Abstand lässt ihn auch
+     auf blauen Flächen (brand-fill) hervortreten. */
   :focus-visible {
-    outline: 2px solid var(--brand);
+    outline: 3px solid var(--brand);
     outline-offset: 2px;
+  }
+
+  /* Eingabefelder: Ring liegt auf dem Rand, wirkt wie ein dicker blauer Rahmen. */
+  input:focus-visible,
+  textarea:focus-visible {
+    outline-offset: 0;
+    border-color: var(--brand);
   }
 
   h1,
@@ -193,12 +204,12 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .press,
-  .rise,
-  .pop,
-  .scanline {
-    animation: none;
-    transition: none;
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
   }
 
   .press:active {

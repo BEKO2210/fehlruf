@@ -85,7 +85,10 @@ export function MeinePage() {
 
   return (
     <div className="mx-auto grid w-full max-w-lg gap-5">
-      <PageTitle title="Meine Rufe" sub="Was du gemeldet hast. Kommt das Teil an: „Erhalten“ tippen." />
+      <div>
+        <PageTitle title="Meine Rufe" sub="Was du gemeldet hast. Kommt das Teil an: „Erhalten“ tippen." />
+        <p className="mt-1 text-xs text-subtle">Nur auf diesem Handy sichtbar.</p>
+      </div>
 
       {offline ? <ErrorText>Keine Verbindung zum Server. Versuche es weiter…</ErrorText> : null}
       {error ? <ErrorText>{error}</ErrorText> : null}
@@ -191,7 +194,7 @@ function MyCard({
         <p className="font-mono text-xl font-semibold tracking-tight break-all">
           {call.partNo} <span className="font-sans text-base font-bold text-muted">× {call.qty}</span>
         </p>
-        {call.orderNo ? <p className="mt-0.5 text-base font-semibold">Auftrag {call.orderNo}</p> : null}
+        {call.orderNo ? <p className="mt-0.5 text-base font-semibold break-all">Auftrag {call.orderNo}</p> : null}
       </div>
 
       {call.note ? (

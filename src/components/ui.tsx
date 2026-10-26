@@ -1,4 +1,4 @@
-import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, TextareaHTMLAttributes } from "react";
+import type { ButtonHTMLAttributes, ComponentProps, ReactNode } from "react";
 
 const buttonStyles = {
   primary: "bg-brand-fill text-brand-ink h-14 text-base font-semibold",
@@ -38,17 +38,18 @@ export function Field({ label, hint, children }: { label: string; hint?: string;
 }
 
 const control =
-  "h-14 w-full rounded-2xl border border-line bg-surface px-4 text-base outline-none transition-colors placeholder:text-subtle focus:border-brand";
+  "h-14 w-full rounded-2xl border border-line bg-surface px-4 text-base transition-colors placeholder:text-subtle focus:border-brand";
 
-export function TextInput(props: InputHTMLAttributes<HTMLInputElement>) {
+// ComponentProps statt InputHTMLAttributes: so kommt ein ref durch (Fokus ins Feld nach Fehler).
+export function TextInput(props: ComponentProps<"input">) {
   return <input {...props} className={`${control} ${props.className ?? ""}`} />;
 }
 
-export function TextArea(props: TextareaHTMLAttributes<HTMLTextAreaElement>) {
+export function TextArea(props: ComponentProps<"textarea">) {
   return (
     <textarea
       {...props}
-      className={`w-full rounded-2xl border border-line bg-surface px-4 py-3 text-base outline-none transition-colors placeholder:text-subtle focus:border-brand ${props.className ?? ""}`}
+      className={`w-full rounded-2xl border border-line bg-surface px-4 py-3 text-base transition-colors placeholder:text-subtle focus:border-brand ${props.className ?? ""}`}
     />
   );
 }
@@ -68,7 +69,7 @@ export function Chip({
     <button
       type="button"
       aria-pressed={active}
-      className={`press shrink-0 rounded-full px-4 font-medium ${size === "lg" ? "h-14 text-base" : "h-12 text-sm"} ${
+      className={`press max-w-full shrink-0 truncate rounded-full px-4 font-medium ${size === "lg" ? "h-14 text-base" : "h-12 text-sm"} ${
         active ? "bg-brand-fill text-brand-ink" : "border border-line bg-surface text-text"
       }`}
       onClick={onClick}

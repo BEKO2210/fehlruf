@@ -302,13 +302,14 @@ function Board({ onLocked }: { onLocked: () => void }) {
 
       <div aria-live="assertive">
         {banner ? (
-          <div
-            className={`rise flex items-center gap-3 rounded-2xl px-4 py-3 text-white ${banner.startsWith("DRINGEND") ? "bg-hot-fill" : "bg-brand-fill"}`}
+          <button
+            type="button"
+            className={`rise flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left text-white ${banner.startsWith("DRINGEND") ? "bg-hot-fill" : "bg-brand-fill"}`}
             onClick={() => setBanner(null)}
           >
             <span className="rounded-full bg-white/20 px-2 py-0.5 text-xs font-bold uppercase">Neu</span>
             <span className="min-w-0 truncate text-sm font-medium">{banner}</span>
-          </div>
+          </button>
         ) : null}
       </div>
 
@@ -493,8 +494,8 @@ function CallCard({
         <p className="font-mono text-xl font-semibold tracking-tight break-all">
           {call.partNo} <span className="font-sans text-base font-bold text-muted">× {call.qty}</span>
         </p>
-        {call.orderNo ? <p className="mt-0.5 text-base font-semibold">Auftrag {call.orderNo}</p> : null}
-        {meta.length ? <p className="mt-0.5 text-sm text-muted">{meta.join(" · ")}</p> : null}
+        {call.orderNo ? <p className="mt-0.5 text-base font-semibold break-all">Auftrag {call.orderNo}</p> : null}
+        {meta.length ? <p className="mt-0.5 text-sm break-words text-muted">{meta.join(" · ")}</p> : null}
       </div>
 
       {call.note ? (

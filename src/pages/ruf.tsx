@@ -1,6 +1,6 @@
 import { Link, useParams, useSearch } from "@tanstack/react-router";
 import { Check, ClipboardList, Minus, Package, Plus, ScanLine, TriangleAlert } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Scanner } from "@/components/scanner";
 import { Button, Chip, ErrorText, Field, PageTitle, TextArea, TextInput } from "@/components/ui";
 import { api, type StationRow } from "@/lib/api";
@@ -27,6 +27,9 @@ export function RufPage() {
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [done, setDone] = useState<Done | null>(null);
+  // Nach einem Fehler springt der Fokus ins fehlende Feld.
+  const partRef = useRef<HTMLInputElement>(null);
+  const deptRef = useRef<HTMLInputElement>(null);
 
   // Abteilung/Linie und Name kommen vom letzten Mal: beim zweiten Teil nur noch Scannen + Senden.
   useEffect(() => {
@@ -65,7 +68,7 @@ export function RufPage() {
         </div>
         <div className="card rise p-5 text-left">
           <p className="font-mono text-xl font-semibold break-all">{done.partNo}</p>
-          <p className="mt-1 text-base text-muted tabular-nums">
+          <p className="mt-1 text-base break-words text-muted tabular-nums">
             {[`${done.qty} Stück`, done.line, done.orderNo ? `Auftrag ${done.orderNo}` : ""].filter(Boolean).join(" · ")}
           </p>
           {done.urgent ? (
@@ -104,10 +107,12 @@ export function RufPage() {
         event.preventDefault();
         if (!partNo.trim()) {
           setError("Welches Teil? Scannen oder Nummer eintippen.");
+          partRef.current?.focus();
           return;
         }
         if (!dept.trim()) {
           setError("Abteilung / Linie fehlt.");
+          deptRef.current?.focus();
           return;
         }
         setPending(true);
@@ -157,6 +162,7 @@ export function RufPage() {
         <label className="min-w-0 flex-1">
           <span className="block text-xs font-semibold tracking-wider text-subtle uppercase">Teil</span>
           <input
+            ref={partRef}
             value={partNo}
             onChange={(event) => {
               setPartNo(event.target.value);
@@ -165,7 +171,7 @@ export function RufPage() {
             placeholder="Nummer vom Teil"
             autoComplete="off"
             autoCapitalize="characters"
-            className="w-full bg-transparent font-mono text-xl font-semibold outline-none placeholder:font-sans placeholder:text-base placeholder:font-normal placeholder:text-subtle"
+            className="w-full rounded-lg bg-transparent font-mono text-xl font-semibold placeholder:font-sans placeholder:text-base placeholder:font-normal placeholder:text-subtle"
           />
         </label>
         {!scanning ? (
@@ -199,7 +205,7 @@ export function RufPage() {
             }}
             inputMode="numeric"
             aria-label="Menge"
-            className="w-24 bg-transparent text-center font-mono text-3xl font-semibold tabular-nums outline-none"
+            className="w-24 rounded-lg bg-transparent text-center font-mono text-3xl font-semibold tabular-nums"
           />
           <button
             type="button"
@@ -244,6 +250,7 @@ export function RufPage() {
       <div className="grid gap-3">
         <Field label="Abteilung / Linie">
           <TextInput
+            ref={deptRef}
             value={dept}
             onChange={(event) => {
               setDept(event.target.value);

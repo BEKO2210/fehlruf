@@ -7,8 +7,8 @@ export function QrCard({ station }: { station: StationRow }) {
   return (
     <article className="card break-inside-avoid p-5 print:rounded-none print:border-neutral-300 print:bg-white print:text-black print:shadow-none">
       <p className="text-xs font-semibold tracking-wider text-brand uppercase">Fehlruf</p>
-      <h2 className="mt-1 text-xl font-bold tracking-tight">{station.line}</h2>
-      <p className="text-sm text-muted">
+      <h2 className="mt-1 text-xl font-bold tracking-tight break-words">{station.line}</h2>
+      <p className="text-sm break-words text-muted">
         {station.name} · <span className="font-mono">{station.code}</span>
       </p>
       <div
