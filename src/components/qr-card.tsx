@@ -1,27 +1,8 @@
-import { useEffect, useState } from "react";
 import type { StationRow } from "@/lib/api";
+import { useQrSvg } from "@/lib/qr";
 
 export function QrCard({ station }: { station: StationRow }) {
-  const [svg, setSvg] = useState("");
-
-  useEffect(() => {
-    let cancelled = false;
-    const url = `${window.location.origin}${window.location.pathname}#/ruf/${station.code}`;
-    void import("qrcode").then(async (mod) => {
-      const api = typeof mod.toString === "function" ? mod : mod.default;
-      const out = await api.toString(url, {
-        type: "svg",
-        margin: 1,
-        width: 240,
-        errorCorrectionLevel: "M",
-        color: { dark: "#121417", light: "#ffffff" },
-      });
-      if (!cancelled) setSvg(out);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [station.code]);
+  const svg = useQrSvg(`${window.location.origin}${window.location.pathname}#/ruf/${station.code}`, 240);
 
   return (
     <article className="card break-inside-avoid p-5 print:rounded-none print:border-neutral-300 print:bg-white print:text-black print:shadow-none">

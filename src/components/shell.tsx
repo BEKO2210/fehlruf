@@ -11,7 +11,7 @@ const items = [
     to: "/tafel",
     label: "Tafel",
     icon: LayoutList,
-    match: (p: string) => p.startsWith("/tafel") || p.startsWith("/plaetze") || p.startsWith("/statistik"),
+    match: (p: string) => p.startsWith("/tafel") || p.startsWith("/plaetze") || p.startsWith("/plakat") || p.startsWith("/statistik"),
   },
 ] as const;
 

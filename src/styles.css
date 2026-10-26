@@ -207,6 +207,11 @@
 }
 
 @media print {
+  @page {
+    size: A4;
+    margin: 18mm;
+  }
+
   .no-print {
     display: none !important;
   }
@@ -218,5 +223,11 @@
 
   .shell-pad {
     padding: 0;
+  }
+
+  /* Der Aushang füllt das Blatt. */
+  .plakat {
+    min-height: calc(297mm - 36mm);
+    align-content: space-between;
   }
 }

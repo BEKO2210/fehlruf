@@ -1,5 +1,18 @@
 import { Link } from "@tanstack/react-router";
-import { BarChart3, Bell, BellOff, Check, ChevronDown, Flag, Lock, MessageSquare, QrCode, RotateCcw, Truck } from "lucide-react";
+import {
+  BarChart3,
+  Bell,
+  BellOff,
+  Check,
+  ChevronDown,
+  Flag,
+  Lock,
+  MessageSquare,
+  Printer,
+  QrCode,
+  RotateCcw,
+  Truck,
+} from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button, Chip, ErrorText, Field, TextInput } from "@/components/ui";
 import { api, ApiError, type CallPatch, type CallRow, type TafelState, type Urgency } from "@/lib/api";
@@ -661,6 +674,13 @@ function Settings({ onLocked }: { onLocked: () => void }) {
         >
           <QrCode className="size-5 text-brand" aria-hidden="true" />
           QR-Zettel für Abteilungen/Linien
+        </Link>
+        <Link
+          to="/plakat"
+          className="press -mt-2 flex h-12 items-center gap-3 rounded-2xl bg-surface-2 px-4 text-sm font-semibold"
+        >
+          <Printer className="size-5 text-brand" aria-hidden="true" />
+          Aushang drucken
         </Link>
         <form
           className="grid gap-2"

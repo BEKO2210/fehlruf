@@ -13,6 +13,7 @@ import { registerSw } from "@/lib/sw";
 import { MeinePage } from "@/pages/meine";
 import { MeldenPage } from "@/pages/melden";
 import { PlaetzePage } from "@/pages/plaetze";
+import { PlakatPage } from "@/pages/plakat";
 import { RufPage } from "@/pages/ruf";
 import { StatistikPage } from "@/pages/statistik";
 import { TafelPage } from "@/pages/tafel";
@@ -40,10 +41,11 @@ const tafelRoute = createRoute({ getParentRoute: () => root, path: "/tafel", com
 const meineRoute = createRoute({ getParentRoute: () => root, path: "/meine", component: MeinePage });
 const statistikRoute = createRoute({ getParentRoute: () => root, path: "/statistik", component: StatistikPage });
 const plaetzeRoute = createRoute({ getParentRoute: () => root, path: "/plaetze", component: PlaetzePage });
+const plakatRoute = createRoute({ getParentRoute: () => root, path: "/plakat", component: PlakatPage });
 
 // Hash-Routing (#/tafel): GitHub Pages kennt keine Umleitung auf index.html.
 const router = createRouter({
-  routeTree: root.addChildren([meldenRoute, rufRoute, meineRoute, tafelRoute, statistikRoute, plaetzeRoute]),
+  routeTree: root.addChildren([meldenRoute, rufRoute, meineRoute, tafelRoute, statistikRoute, plaetzeRoute, plakatRoute]),
   history: createHashHistory(),
   scrollRestoration: true,
 });
