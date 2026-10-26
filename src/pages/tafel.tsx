@@ -349,7 +349,7 @@ function Board({ onLocked }: { onLocked: () => void }) {
       ) : (
         <ul className="grid gap-5 md:grid-cols-2">
           {visible.map((call) => (
-            <li key={call.id}>
+            <li key={call.id} className="min-w-0">
               <CallCard call={call} now={now} busy={busy !== null} onChange={(patch) => void update(call, patch)} />
             </li>
           ))}
@@ -391,18 +391,18 @@ function MissingSummary({ calls }: { calls: CallRow[] }) {
   if (rows.length < 2) return null;
 
   return (
-    <section className="card p-4">
+    <section className="card min-w-0 p-4">
       <h2 className="text-xs font-semibold tracking-wider text-subtle uppercase">
         Was fehlt gerade · {rows.length} Teile
       </h2>
-      <ul className="mt-3 grid gap-2">
+      <ul className="mt-3 grid grid-cols-[minmax(0,1fr)] gap-2">
         {rows.slice(0, 8).map((row) => (
-          <li key={row.partNo} className="flex items-center justify-between gap-3 text-sm">
+          <li key={row.partNo} className="flex min-w-0 items-center justify-between gap-3 text-sm">
             <span className="flex min-w-0 items-center gap-2">
               <span className={`size-2 shrink-0 rounded-full ${row.urgent ? "bg-hot-fill" : "bg-line"}`} />
               <span className="truncate font-mono font-semibold">{row.partNo}</span>
             </span>
-            <span className="shrink-0 text-muted tabular-nums">
+            <span className="min-w-0 max-w-[55%] truncate text-muted tabular-nums">
               {row.qty} Stk · {row.depts.size === 1 ? [...row.depts][0] : `${row.depts.size} Abteilungen/Linien`}
             </span>
           </li>
@@ -449,7 +449,7 @@ function CallCard({
 
   return (
     <article
-      className={`card relative grid gap-3 overflow-hidden p-4 pl-5 ${isDone ? "bg-surface-2" : ""} ${
+      className={`card relative grid min-w-0 gap-3 overflow-hidden p-4 pl-5 ${isDone ? "bg-surface-2" : ""} ${
         tone === "late" ? "!border-hot bg-hot-soft" : tone === "slow" ? "!border-warn bg-warn-soft" : urgent ? "!border-hot" : ""
       }`}
     >
@@ -463,7 +463,7 @@ function CallCard({
               Dringend
             </p>
           ) : null}
-          <h2 className="truncate text-lg font-bold tracking-tight">{call.line}</h2>
+          <h2 className="text-lg font-bold tracking-tight break-words">{call.line}</h2>
         </div>
         <div className="shrink-0 text-right">
           <p className={`text-2xl leading-tight font-bold tabular-nums ${isDone ? "text-ok" : waitColor}`}>
@@ -498,7 +498,7 @@ function CallCard({
         </p>
       ) : call.reply ? (
         <p
-          className={`flex items-center gap-2 text-sm ${replyTone(call.reply) === "warn" ? "text-warn" : "text-brand"}`}
+          className="flex items-center gap-2 text-sm text-brand"
         >
           <MessageSquare className="size-4 shrink-0" aria-hidden="true" />
           <span className="font-semibold">Deine Antwort: {call.reply}</span>
@@ -529,7 +529,8 @@ function CallCard({
           Erhalten (selbst bestätigen)
         </Button>
       ) : (
-        <Button variant="ghost" disabled={busy} onClick={() => onChange({ status: "open" })}>
+        // Karte ist selbst grau: Knopf hebt sich über die Kartenfarbe ab.
+        <Button variant="muted" full className="!bg-surface" disabled={busy} onClick={() => onChange({ status: "open" })}>
           <RotateCcw className="size-4 shrink-0" aria-hidden="true" />
           Wieder offen
         </Button>

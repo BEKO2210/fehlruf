@@ -77,20 +77,22 @@ export function RufPage() {
         <p className="text-base text-muted">
           Kommt das Teil an, unter <span className="font-semibold text-text">Meine</span> auf „Erhalten“ tippen.
         </p>
-        <Link
-          to="/meine"
-          className="press inline-flex h-14 items-center justify-center gap-2 rounded-2xl bg-brand-fill text-base font-semibold text-brand-ink"
-        >
-          <ClipboardList className="size-5" aria-hidden="true" />
-          Meine Rufe ansehen
-        </Link>
-        <Link
-          to="/"
-          className="press -mt-2 inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-surface-2 text-base font-medium"
-        >
-          <ScanLine className="size-5" aria-hidden="true" />
-          Nächstes Teil scannen
-        </Link>
+        <div className="grid gap-3">
+          <Link
+            to="/meine"
+            className="press inline-flex h-14 items-center justify-center gap-2 rounded-2xl bg-brand-fill text-base font-semibold text-brand-ink"
+          >
+            <ClipboardList className="size-5" aria-hidden="true" />
+            Meine Rufe ansehen
+          </Link>
+          <Link
+            to="/"
+            className="press inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-surface-2 text-base font-medium"
+          >
+            <ScanLine className="size-5" aria-hidden="true" />
+            Nächstes Teil scannen
+          </Link>
+        </div>
       </div>
     );
   }

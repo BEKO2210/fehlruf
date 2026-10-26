@@ -110,7 +110,7 @@ export function MeinePage() {
       ) : (
         <ul className="grid gap-5">
           {active.map((call) => (
-            <li key={call.id}>
+            <li key={call.id} className="min-w-0">
               <MyCard call={call} now={now} busy={busy === call.id} onReceived={() => void confirm(call)} />
             </li>
           ))}
@@ -169,7 +169,7 @@ function MyCard({
       : { text: "Gemeldet", sub: "Lager hat es noch nicht geöffnet.", color: "bg-surface-2 text-text" };
 
   return (
-    <article className={`card grid gap-3 p-4 ${missing ? "ring-2 ring-hot" : sent ? "ring-2 ring-ok" : ""}`}>
+    <article className={`card grid min-w-0 gap-3 p-4 ${missing ? "ring-2 ring-hot" : sent ? "ring-2 ring-ok" : ""}`}>
       {/* Kopf: Linie links, Wartezeit groß rechts */}
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
@@ -178,7 +178,7 @@ function MyCard({
               Dringend
             </p>
           ) : null}
-          <h2 className="truncate text-lg font-bold tracking-tight">{call.line}</h2>
+          <h2 className="text-lg font-bold tracking-tight break-words">{call.line}</h2>
         </div>
         <div className="shrink-0 text-right">
           <p className={`text-2xl leading-tight font-bold tabular-nums ${waitColor}`}>{waitLabel(call.createdAt, now)}</p>
@@ -208,10 +208,10 @@ function MyCard({
 
       {call.reply && !missing && !(sent && rt === "info") ? (
         <div
-          className={`flex gap-3 rounded-2xl p-3 ${rt === "bad" ? "bg-hot-soft text-hot" : rt === "warn" ? "bg-warn-soft text-warn" : "bg-brand-soft"}`}
+          className={`flex gap-3 rounded-2xl p-3 ${rt === "bad" ? "bg-hot-soft text-hot" : "bg-brand-soft"}`}
         >
           <MessageSquare
-            className={`mt-0.5 size-5 shrink-0 ${rt === "info" ? "text-brand" : ""}`}
+            className={`mt-0.5 size-5 shrink-0 ${rt === "bad" ? "" : "text-brand"}`}
             aria-hidden="true"
           />
           <div>

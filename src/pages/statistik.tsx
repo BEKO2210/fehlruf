@@ -99,14 +99,14 @@ function Board({ onLocked }: { onLocked: () => void }) {
             {stats.open > 0 ? ` ${stats.open} noch nicht erhalten.` : ""}
           </p>
 
-          <section className="card p-4">
+          <section className="card min-w-0 p-4">
             <h2 className="text-xs font-semibold tracking-wider text-subtle uppercase">Abteilung / Linie</h2>
-            <ul className="mt-3 grid gap-3">
+            <ul className="mt-3 grid grid-cols-[minmax(0,1fr)] gap-3">
               {stats.lines.map((line) => (
-                <li key={line.line} className="grid gap-1">
-                  <div className="flex items-baseline justify-between gap-3 text-sm">
-                    <span className="truncate font-semibold">{line.line}</span>
-                    <span className="shrink-0 text-muted tabular-nums">
+                <li key={line.line} className="grid min-w-0 gap-1">
+                  <div className="flex min-w-0 items-baseline justify-between gap-3 text-sm">
+                    <span className="min-w-0 truncate font-semibold">{line.line}</span>
+                    <span className="min-w-0 max-w-[55%] truncate text-muted tabular-nums">
                       {line.count} {line.count === 1 ? "Ruf" : "Rufe"}{line.urgent ? ` · ${line.urgent} dringend` : ""}
                       {line.toReceivedMedianMs !== null ? ` · meist ${duration(line.toReceivedMedianMs)}` : ""}
                     </span>
@@ -119,11 +119,11 @@ function Board({ onLocked }: { onLocked: () => void }) {
             </ul>
           </section>
 
-          <section className="card p-4">
+          <section className="card min-w-0 p-4">
             <h2 className="text-xs font-semibold tracking-wider text-subtle uppercase">Am häufigsten gefehlt</h2>
-            <ol className="mt-3 grid gap-2">
+            <ol className="mt-3 grid grid-cols-[minmax(0,1fr)] gap-2">
               {stats.parts.map((part, i) => (
-                <li key={part.partNo} className="flex items-center justify-between gap-3 text-sm">
+                <li key={part.partNo} className="flex min-w-0 items-center justify-between gap-3 text-sm">
                   <span className="flex min-w-0 items-center gap-2">
                     <span className="w-5 shrink-0 text-subtle tabular-nums">{i + 1}.</span>
                     <span className="truncate font-mono font-semibold">{part.partNo}</span>

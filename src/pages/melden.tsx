@@ -53,7 +53,7 @@ export function MeldenPage() {
             size={1}
             className="h-14 min-w-0 flex-1 rounded-2xl border border-line bg-surface px-4 font-mono text-base outline-none placeholder:font-sans placeholder:text-subtle focus:border-brand"
           />
-          <Button type="submit" disabled={!typed.trim()} className="shrink-0 disabled:border disabled:border-line">
+          <Button type="submit" variant="muted" disabled={!typed.trim()} className="!h-14 shrink-0 disabled:border disabled:border-line">
             Weiter
           </Button>
         </div>
