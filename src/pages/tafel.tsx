@@ -207,6 +207,12 @@ function Board({ onLocked }: { onLocked: () => void }) {
   const urgent = active.filter((call) => call.urgency === "sofort").length;
   // Die Zeit läuft, bis "Erhalten" bestätigt ist, also auch bei "Gesendet".
   const oldest = active.reduce((min, call) => Math.min(min, call.createdAt), Infinity);
+  // Farbe der Kopfzahl: der schlimmste Ruf, dringende werden früher rot.
+  const rank = { fresh: 0, slow: 1, late: 2 } as const;
+  const worst = active.reduce<"fresh" | "slow" | "late">((w, call) => {
+    const t = waitTone(call.createdAt, now, call.urgency);
+    return rank[t] > rank[w] ? t : w;
+  }, "fresh");
   const count = (status: Filter) => calls.filter((call) => call.status === status).length;
 
   const inFilter = calls.filter((call) => call.status === filter);
@@ -275,7 +281,7 @@ function Board({ onLocked }: { onLocked: () => void }) {
         <Stat
           label="Längste Wartezeit"
           value={active.length ? waitShort(oldest, now) : "–"}
-          tone={active.length ? toneOf(waitTone(oldest, now)) : undefined}
+          tone={active.length ? toneOf(worst) : undefined}
         />
       </div>
 
@@ -551,8 +557,8 @@ function CallCard({
           </Button>
         ) : (
           <Button variant="ghost" disabled={busy} onClick={() => onChange({ status: "open" })}>
-            <RotateCcw className="size-4" aria-hidden="true" />
-            Wieder offen
+            <RotateCcw className="size-4 shrink-0" aria-hidden="true" />
+            <span className="text-sm">Wieder offen</span>
           </Button>
         )}
         {!isDone ? (

@@ -167,6 +167,11 @@ export function createApp({
   for (const [name, definition] of Object.entries(NEW_COLUMNS)) {
     if (!columns.has(name)) db.exec(`alter table calls add column ${name} ${definition}`);
   }
+  if (!columns.has("received_at")) {
+    // Rufe aus v1 kannten nur den Status. Damit die Statistik sie mitzählt: letzte Änderung als Zeitpunkt.
+    db.exec(`update calls set sent_at = updated_at where status in ('underway', 'done');
+      update calls set received_at = updated_at, received_by = 'lager' where status = 'done';`);
+  }
   db.exec("create index if not exists calls_owner_hash_idx on calls (owner_hash)");
 
   const origins = new Set(allowedOrigins.map((o) => o.trim().replace(/\/$/, "")).filter(Boolean));
@@ -229,6 +234,18 @@ export function createApp({
     while (pinFails.length && pinFails[0].at < cutoff) pinFails.shift();
     const mine = pinFails.filter((f) => f.ip === ip).length;
     return mine >= MAX_FAILS_PER_IP || pinFails.length >= MAX_FAILS_TOTAL;
+  }
+
+  const deviceHits = new Map();
+
+  // Meine/Erhalten: pro Gerät, nicht pro Adresse – die ganze Fabrik kann hinter einer IP stehen.
+  function allowDevice(hash) {
+    const t = now();
+    const hits = (deviceHits.get(hash) ?? []).filter((h) => t - h < 60_000);
+    if (hits.length >= 30) throw new HttpError(429, "Zu viele Anfragen. Kurz warten.");
+    hits.push(t);
+    deviceHits.set(hash, hits);
+    if (deviceHits.size > 5000) deviceHits.clear();
   }
 
   function allowCall(ip) {
@@ -295,23 +312,31 @@ export function createApp({
 
     "POST /api/mine": ({ body }) => {
       if (typeof body.device !== "string" || !DEVICE_RE.test(body.device)) throw bad("Geräteschlüssel ungültig");
-      return db
-        .prepare("select * from calls where owner_hash = ? and (status <> 'done' or updated_at >= ?) order by created_at desc limit 50")
-        .all(deviceHash(body.device), now() - 86_400_000)
-        .map(mapCall);
+      const hash = deviceHash(body.device);
+      allowDevice(hash);
+      // Offene immer alle, sonst kann man den ältesten nicht mehr bestätigen. Erledigte nur die letzten.
+      const active = db
+        .prepare("select * from calls where owner_hash = ? and status <> 'done' order by created_at desc limit 500")
+        .all(hash);
+      const done = db
+        .prepare("select * from calls where owner_hash = ? and status = 'done' and updated_at >= ? order by updated_at desc limit 30")
+        .all(hash, now() - 86_400_000);
+      return [...active, ...done].map(mapCall);
     },
 
     "POST /api/calls/:id/received": ({ params, body }) => {
       const id = params.id.toUpperCase();
       if (!ID_RE.test(id)) throw bad("Ruf ungültig");
       const ownerHash = typeof body.device === "string" && DEVICE_RE.test(body.device) ? deviceHash(body.device) : "";
+      if (ownerHash) allowDevice(ownerHash);
       const row = db.prepare("select * from calls where id = ? and owner_hash = ? and owner_hash <> ''").get(id, ownerHash);
       if (!row) throw new HttpError(404, "Ruf nicht gefunden");
       if (row.status !== "done") {
         const t = now();
         db.prepare(
-          "update calls set status = 'done', received_at = ?, received_by = 'requester', sent_at = coalesce(sent_at, ?), updated_at = ? where id = ?",
-        ).run(t, t, t, id);
+          // sent_at bleibt, wie es ist: Hat das Lager nie "Gesendet" gedrückt, zählt es nicht als gesendet.
+          "update calls set status = 'done', received_at = ?, received_by = 'requester', updated_at = ? where id = ?",
+        ).run(t, t, id);
       }
       return mapCall(db.prepare("select * from calls where id = ?").get(id));
     },
@@ -356,12 +381,19 @@ export function createApp({
 
     "GET /api/calls": ({ url }) => {
       // Nur wenn die Tafel wirklich vorne ist, sonst wäre "gesehen" gelogen.
+      const list = () =>
+        db
+          .prepare("select * from calls where status <> 'done' or updated_at > ? order by created_at desc limit 300")
+          .all(now() - 2 * 86_400_000);
+      let rows = list();
       if (url.searchParams.get("seen") === "1") {
-        db.prepare("update calls set seen_at = ? where status = 'open' and seen_at is null").run(now());
+        // Nur was die Tafel wirklich zeigt.
+        const mark = db.prepare("update calls set seen_at = ? where id = ? and status = 'open' and seen_at is null");
+        const t = now();
+        let changed = 0;
+        for (const row of rows) changed += Number(mark.run(t, row.id).changes);
+        if (changed) rows = list();
       }
-      const rows = db
-        .prepare("select * from calls where status <> 'done' or updated_at > ? order by created_at desc limit 300")
-        .all(now() - 2 * 86_400_000);
       return rows.map(mapCall);
     },
 
@@ -380,22 +412,27 @@ export function createApp({
       let sentAt = row.sent_at;
       let receivedAt = row.received_at;
       let receivedBy = row.received_by;
+      let seenAt = row.seen_at;
       if (status === "underway") sentAt ??= t;
       if (status === "done") {
         sentAt ??= t;
         receivedAt ??= t;
         receivedBy ||= "lager";
       }
-      if (status === "open") {
-        sentAt = null;
+      if (status !== "done") {
+        // Zurück aus "erhalten": Die Zeit läuft wieder.
         receivedAt = null;
         receivedBy = "";
       }
+      if (status === "open" && row.status !== "open") {
+        sentAt = null;
+        seenAt = null;
+      }
       const replyAt = reply === row.reply ? row.reply_at : reply ? t : null;
       db.prepare(
-        `update calls set status = ?, urgency = ?, reply = ?, reply_at = ?, sent_at = ?, received_at = ?,
+        `update calls set status = ?, urgency = ?, reply = ?, reply_at = ?, seen_at = ?, sent_at = ?, received_at = ?,
          received_by = ?, updated_at = ? where id = ?`,
-      ).run(status, urgency, reply, replyAt, sentAt, receivedAt, receivedBy, t, id);
+      ).run(status, urgency, reply, replyAt, seenAt, sentAt, receivedAt, receivedBy, t, id);
       return mapCall(db.prepare("select * from calls where id = ?").get(id));
     },
 

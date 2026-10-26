@@ -123,6 +123,7 @@ test("alte Datenbank bekommt neue Spalten und Index", async () => {
   const dir = mkdtempSync(join(tmpdir(), "fehlruf-test-"));
   const dbPath = join(dir, "old.db");
   try {
+    const recent = Date.now() - 60_000;
     const old = new DatabaseSync(dbPath);
     old.exec(`create table calls (
       id text primary key, station_code text not null default '', line text not null,
@@ -130,13 +131,14 @@ test("alte Datenbank bekommt neue Spalten und Index", async () => {
       urgency text not null default 'normal', note text not null default '', requester text not null default '',
       status text not null default 'open', created_at integer not null, updated_at integer not null
     );
-    insert into calls (id, line, part_no, created_at, updated_at) values ('ABCDEF', 'Montage', 'Altteil', 1, 1);`);
+    insert into calls (id, line, part_no, created_at, updated_at) values ('ABCDEF', 'Montage', 'Altteil', 1, 1);
+    insert into calls (id, line, part_no, status, created_at, updated_at) values ('GHJKLM', 'Montage', 'Altteil', 'done', ${recent - 500}, ${recent});`);
     old.close();
     const { call, close } = await start({ dbPath });
     const token = (await call("POST", "/api/setup", { body: { pin: "482913" } })).data.token;
     const rows = (await call("GET", "/api/calls", { token })).data;
-    assert.equal(rows[0].partNo, "Altteil");
-    assert.equal(rows[0].orderNo, "");
+    assert.equal(rows.find((row) => row.id === "ABCDEF").partNo, "Altteil");
+    assert.equal(rows.find((row) => row.id === "ABCDEF").orderNo, "");
     await close();
     const migrated = new DatabaseSync(dbPath);
     const columns = migrated.prepare("pragma table_info(calls)").all().map((row) => row.name);
@@ -144,6 +146,9 @@ test("alte Datenbank bekommt neue Spalten und Index", async () => {
       assert.ok(columns.includes(name), name);
     }
     assert.ok(migrated.prepare("pragma index_list(calls)").all().some((row) => row.name === "calls_owner_hash_idx"));
+    // v1-Erledigte bekommen Zeitstempel, damit die Statistik sie zählt.
+    const legacy = migrated.prepare("select received_at, received_by, sent_at from calls where id = 'GHJKLM'").get();
+    assert.deepEqual({ ...legacy }, { received_at: recent, received_by: "lager", sent_at: recent });
     migrated.close();
   } finally {
     rmSync(dir, { recursive: true, force: true });
@@ -178,7 +183,7 @@ test("Erhalten verlangt passendes Gerät und ist idempotent", async () => {
   const received = await call("POST", `/api/calls/${id}/received`, { body: { device } });
   assert.equal(received.data.status, "done");
   assert.equal(received.data.receivedBy, "requester");
-  assert.equal(received.data.sentAt, time);
+  assert.equal(received.data.sentAt, null);
   assert.equal(received.data.receivedAt, time);
   time += 5_000;
   assert.deepEqual((await call("POST", `/api/calls/${id}/received`, { body: { device } })).data, received.data);
@@ -250,5 +255,25 @@ test("Statistik berechnet Berliner Tagesgrenze und Kennzahlen", async () => {
   assert.equal(week.from, Date.parse("2026-03-22T23:00:00Z"));
   assert.equal(week.total, 4);
   assert.equal((await call("GET", "/api/stats?days=30", { token })).data.from, Date.parse("2026-02-27T23:00:00Z"));
+  await close();
+});
+
+test("Wieder öffnen nach Erhalten setzt Erhalt und Gesehen zurück", async () => {
+  let time = 1_000_000;
+  const { call, close } = await start({ now: () => time });
+  const token = (await call("POST", "/api/setup", { body: { pin: "482913" } })).data.token;
+  const id = (await call("POST", "/api/calls", { body: { ...ruf, device } })).data.id;
+  await call("GET", "/api/calls?seen=1", { token });
+  time += 1_000;
+  await call("POST", `/api/calls/${id}/received`, { body: { device } });
+  const back = await call("PATCH", `/api/calls/${id}`, { token, body: { status: "underway" } });
+  assert.equal(back.data.receivedAt, null);
+  assert.equal(back.data.receivedBy, "");
+  const open = await call("PATCH", `/api/calls/${id}`, { token, body: { status: "open" } });
+  assert.equal(open.data.seenAt, null);
+  assert.equal(open.data.sentAt, null);
+  const stats = (await call("GET", "/api/stats?days=1", { token })).data;
+  assert.equal(stats.confirmedByRequester, 0);
+  assert.equal(stats.open, 1);
   await close();
 });

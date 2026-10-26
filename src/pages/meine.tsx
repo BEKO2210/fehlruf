@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { Check, MessageSquare, ScanLine } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Button, ErrorText, PageTitle } from "@/components/ui";
 import { api, type CallRow } from "@/lib/api";
 import { relativeWhen, waitLabel, waitTone } from "@/lib/format";
@@ -9,15 +9,21 @@ import { relativeWhen, waitLabel, waitTone } from "@/lib/format";
 function useMine() {
   const [calls, setCalls] = useState<CallRow[] | null>(null);
   const [offline, setOffline] = useState(false);
+  // Zählt hoch bei jeder eigenen Änderung: Antworten von Abfragen, die davor losliefen, sind veraltet.
+  const generation = useRef(0);
 
   const load = useCallback(() => {
+    const gen = generation.current;
     api
       .mine()
       .then((rows) => {
+        if (gen !== generation.current) return;
         setCalls(rows);
         setOffline(false);
       })
-      .catch(() => setOffline(true));
+      .catch(() => {
+        if (gen === generation.current) setOffline(true);
+      });
   }, []);
 
   useEffect(() => {
@@ -30,16 +36,22 @@ function useMine() {
     };
     document.addEventListener("visibilitychange", onVis);
     return () => {
+      generation.current += 1;
       window.clearInterval(timer);
       document.removeEventListener("visibilitychange", onVis);
     };
   }, [load]);
 
-  return { calls, setCalls, offline, load };
+  const replace = useCallback((row: CallRow) => {
+    generation.current += 1;
+    setCalls((list) => (list ?? []).map((item) => (item.id === row.id ? row : item)));
+  }, []);
+
+  return { calls, replace, offline };
 }
 
 export function MeinePage() {
-  const { calls, setCalls, offline } = useMine();
+  const { calls, replace, offline } = useMine();
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
@@ -54,7 +66,7 @@ export function MeinePage() {
     setError(null);
     try {
       const row = await api.received(call.id);
-      setCalls((list) => (list ?? []).map((item) => (item.id === row.id ? row : item)));
+      replace(row);
       if (typeof navigator.vibrate === "function") navigator.vibrate(40);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Hat nicht geklappt. Nochmal tippen.");
