@@ -668,20 +668,22 @@ function Settings({ onLocked }: { onLocked: () => void }) {
         <ChevronDown className="size-4 transition-transform group-open:rotate-180" aria-hidden="true" />
       </summary>
       <div className="mt-4 grid gap-5">
-        <Link
-          to="/plaetze"
-          className="press flex h-12 items-center gap-3 rounded-2xl bg-surface-2 px-4 text-sm font-semibold"
-        >
-          <QrCode className="size-5 text-brand" aria-hidden="true" />
-          QR-Zettel für Abteilungen/Linien
-        </Link>
-        <Link
-          to="/plakat"
-          className="press -mt-2 flex h-12 items-center gap-3 rounded-2xl bg-surface-2 px-4 text-sm font-semibold"
-        >
-          <Printer className="size-5 text-brand" aria-hidden="true" />
-          Aushang drucken
-        </Link>
+        <div className="grid gap-3">
+          <Link
+            to="/plaetze"
+            className="press flex h-12 items-center gap-3 rounded-2xl bg-surface-2 px-4 text-sm font-semibold"
+          >
+            <QrCode className="size-5 text-brand" aria-hidden="true" />
+            QR-Zettel für Abteilungen/Linien
+          </Link>
+          <Link
+            to="/plakat"
+            className="press flex h-12 items-center gap-3 rounded-2xl bg-surface-2 px-4 text-sm font-semibold"
+          >
+            <Printer className="size-5 text-brand" aria-hidden="true" />
+            Aushang drucken
+          </Link>
+        </div>
         <form
           className="grid gap-2"
           onSubmit={(event) => {

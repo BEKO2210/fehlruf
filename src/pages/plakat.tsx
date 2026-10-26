@@ -7,8 +7,8 @@ import { Offline, PinGate, useTafelState } from "@/pages/tafel";
 const APP_URL = "https://beko2210.github.io/fehlruf/";
 
 const STEPS = [
-  ["App öffnen", "QR-Code mit der Handy-Kamera scannen."],
-  ["Teil scannen", "Barcode vom Teil scannen und senden."],
+  ["App öffnen", "QR-Code unten mit der Handy-Kamera scannen."],
+  ["Teil scannen", "Barcode vom Teil scannen, Linie eintippen, senden."],
   ["Erhalten tippen", "Wenn das Teil da ist: „Erhalten“ tippen."],
 ] as const;
 
@@ -47,15 +47,16 @@ function Plakat() {
         <ol className="grid gap-6">
           {STEPS.map(([title, text], index) => (
             <li key={title} className="flex items-start gap-5">
+              {/* Kontur statt Füllung: Rahmen und Schrift druckt Chrome auch ohne „Hintergrundgrafiken“. */}
               <span
-                className="grid size-16 shrink-0 place-items-center rounded-full bg-black text-[34px] leading-none font-extrabold text-white tabular-nums"
+                className="grid size-16 shrink-0 place-items-center rounded-full border-4 border-black text-[34px] leading-none font-extrabold text-black tabular-nums print:size-20 print:text-[44px]"
                 aria-hidden="true"
               >
                 {index + 1}
               </span>
               <div className="pt-1">
-                <p className="text-2xl leading-tight font-bold text-black print:text-[28px]">{title}</p>
-                <p className="mt-1 text-lg leading-snug text-neutral-700 print:text-xl">{text}</p>
+                <p className="text-2xl leading-tight font-bold text-black print:text-[34px]">{title}</p>
+                <p className="mt-1 text-lg leading-snug text-neutral-700 print:text-2xl">{text}</p>
               </div>
             </li>
           ))}
@@ -65,6 +66,7 @@ function Plakat() {
           <div
             className="w-full max-w-[64mm] [&_svg]:h-auto [&_svg]:w-full print:max-w-[80mm]"
             dangerouslySetInnerHTML={svg ? { __html: svg } : undefined}
+            role="img"
             aria-label="QR-Code zur App"
           />
           <p className="text-center font-mono text-base font-semibold text-black print:text-lg">beko2210.github.io/fehlruf</p>

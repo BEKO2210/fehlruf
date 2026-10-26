@@ -212,6 +212,12 @@
     margin: 18mm;
   }
 
+  /* Falls doch Füllflächen gedruckt werden sollen: nicht von „Hintergrundgrafiken“ abhängig. */
+  .plakat {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
   .no-print {
     display: none !important;
   }
