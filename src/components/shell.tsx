@@ -2,6 +2,7 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import { ClipboardList, LayoutList, ScanLine } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { api, hasDevice, token } from "@/lib/api";
+import { applyUpdate, useUpdateReady } from "@/lib/sw";
 
 const items = [
   { to: "/", label: "Melden", icon: ScanLine, match: (p: string) => p === "/" || p.startsWith("/ruf") },
@@ -42,6 +43,7 @@ function useOpenCount(path: string) {
 export function Shell({ children }: { children: ReactNode }) {
   const path = useRouterState({ select: (s) => s.location.pathname });
   const openCount = useOpenCount(path);
+  const updateReady = useUpdateReady();
   // Arbeiter brauchen die Tafel nicht. Sie erscheint unten erst auf Geräten, die schon mit PIN drin waren.
   const lager = token.get() !== "" || items[2].match(path);
   const shown = lager ? items : items.slice(0, 2);
@@ -49,6 +51,15 @@ export function Shell({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-dvh">
       <header className="no-print sticky top-0 z-20 border-b border-line bg-bg/85 backdrop-blur-md">
+        {updateReady ? (
+          <button
+            type="button"
+            onClick={applyUpdate}
+            className="press flex h-12 w-full items-center justify-center bg-brand-fill px-4 text-sm font-semibold text-white"
+          >
+            Neue Version – tippen zum Laden
+          </button>
+        ) : null}
         <div className="mx-auto flex w-full max-w-3xl items-center gap-2.5 px-4 py-3">
           <img src="./favicon.svg" alt="" className="size-7" />
           <Link to="/" className="text-lg font-bold tracking-tight">

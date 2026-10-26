@@ -1,10 +1,13 @@
 {
+  "id": "./",
   "name": "Fehlruf",
   "short_name": "Fehlruf",
-  "description": "Fehlende Teile scannen und ans Lager melden.",
+  "description": "Fehlende Teile an Maschine oder Linie scannen und ans Lager melden. Das Lager antwortet, du siehst den Stand.",
+  "categories": ["productivity", "business", "utilities"],
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#0b0d10",
   "theme_color": "#2f6bff",
   "lang": "de",
@@ -12,5 +15,21 @@
     { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
     { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" },
     { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    {
+      "name": "Teil melden",
+      "short_name": "Melden",
+      "description": "Fehlendes Teil scannen und melden",
+      "url": "./#/",
+      "icons": [{ "src": "icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Meine Rufe",
+      "short_name": "Meine",
+      "description": "Stand der eigenen Rufe",
+      "url": "./#/meine",
+      "icons": [{ "src": "icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    }
   ]
 }

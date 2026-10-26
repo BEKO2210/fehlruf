@@ -9,6 +9,7 @@ import {
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { Shell } from "@/components/shell";
+import { registerSw } from "@/lib/sw";
 import { MeinePage } from "@/pages/meine";
 import { MeldenPage } from "@/pages/melden";
 import { PlaetzePage } from "@/pages/plaetze";
@@ -59,9 +60,5 @@ createRoot(document.getElementById("root")!).render(
   </StrictMode>,
 );
 
-// Installierbar als App (PWA). Nur im Build, damit der Dev-Server nicht cacht.
-if (import.meta.env.PROD && "serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker.register("./sw.js").catch(() => {});
-  });
-}
+// Installierbar als App (PWA), mit Leiste "Neue Version" in der Shell.
+registerSw();

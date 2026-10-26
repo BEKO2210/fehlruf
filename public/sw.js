@@ -2,9 +2,13 @@
 // bei kurzem Netzausfall. Netz zuerst, damit nach jedem Deploy die neue
 // Version kommt. Nur eigene Dateien; die API (andere Domain) läuft nie
 // über den Cache.
-const CACHE = "fehlruf-v1";
+// Eine neue Version wartet, bis die Seite "SKIP_WAITING" schickt (Leiste
+// "Neue Version"), damit kein Ruf mitten in der Eingabe neu lädt.
+const CACHE = "fehlruf-v2";
 
-self.addEventListener("install", () => self.skipWaiting());
+self.addEventListener("message", (event) => {
+  if (event.data?.type === "SKIP_WAITING") self.skipWaiting();
+});
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
